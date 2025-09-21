@@ -1,0 +1,10 @@
+{
+  "endpoints": {
+    "ollama": "http://127.0.0.1:11434",
+    "qwen3": "http://127.0.0.1:5000/qwen3",
+    "qwenvl": "http://127.0.0.1:5000/qwen3",
+    "murasame": "http://127.0.0.1:5000/reply_bi",
+    "murasame-sovits": ""
+  },
+  "enable_vl": false
+}
