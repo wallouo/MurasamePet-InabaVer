@@ -12,7 +12,7 @@ $VITS_STARTUP = "start.bat"
 $VITS_PORT = 23456
 $API_PORT = if ($Env:API_PORT) { $Env:API_PORT } else { 5000 }
 $OLLAMA_PORT = 11434
-$OLLAMA_MODEL = "qwen2.5:3b"  # ← 新增：指定模型名稱
+$OLLAMA_MODEL = "meguru"
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host " Inaba Meguru Desktop Pet" -ForegroundColor Cyan
