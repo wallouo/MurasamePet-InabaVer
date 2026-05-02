@@ -41,6 +41,8 @@ class VisionConnector:
         base_url: str = "http://localhost:11434",
         model: str = "qwen3-vl:4b-instruct", 
         timeout: int = 60 
+        model: str = "qwen3-vl:4b-instruct", 
+        timeout: int = 60 
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -75,11 +77,39 @@ class VisionConnector:
         pil_img.save(buffered, format="PNG")
         return base64.b64encode(buffered.getvalue()).decode("utf-8")    
 
+    def is_qwen_vl(self) -> bool:
+        """判斷目前使用的模型是否為 qwen-vl 系列"""
+        return "qwen" in self.model.lower()
+
+    def image_to_base64(self, image) -> str:
+        if isinstance(image, np.ndarray):
+            # 處理 numpy array (例如 OpenCV 或 mss 截圖)
+            if len(image.shape) == 3:
+                if image.shape[2] == 3:
+                    # BGR (OpenCV) 轉 RGB
+                    image = image[:, :, ::-1]
+                elif image.shape[2] == 4:
+                    # BGRA (mss) 轉 RGBA (B=0, G=1, R=2, A=3 -> R=2, G=1, B=0, A=3)
+                    image = image[:, :, [2, 1, 0, 3]]
+            pil_img = Image.fromarray(image)
+        elif isinstance(image, Image.Image):
+            # 本來就是 PIL Image
+            pil_img = image
+        else:
+            raise TypeError(f"不支援的圖片格式: {type(image)}")
+
+        # 將 PIL 圖片轉為 base64 編碼的 PNG
+        import io 
+        buffered = io.BytesIO()
+        pil_img.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")    
+
     def analyze_image(
         self,
         image: Union[str, Path, Image.Image, np.ndarray],
         prompt: str = "この画像を詳しく説明してください。どんなアプリ、ゲーム、または作業が表示されているか教えてください。",
         stream: bool = False,
+        keep_alive: str = "5m",  
         keep_alive: str = "5m",  
         custom_options: Optional[Dict[str, Any]] = None
     ) -> str:
@@ -88,17 +118,20 @@ class VisionConnector:
         """
         try:
             image_b64 = self.image_to_base64(image)
+            image_b64 = self.image_to_base64(image)
             
             options = self.DEFAULT_OPTIONS.copy()
             if custom_options:
                 options.update(custom_options)
             
             if self.is_qwen_vl():
+            if self.is_qwen_vl():
                 api_endpoint = f"{self.base_url}/api/chat"
                 
                 vl_options = options.copy()
                 vl_options.update({
                     "temperature": 0.1,
+                    "num_predict": 80,
                     "num_predict": 80,
                     "top_k": 20,
                     "repeat_penalty": 1.2
@@ -133,6 +166,7 @@ class VisionConnector:
             print(f"[VisionConnector Debug] Prompt: {prompt[:100]}...")
             print(f"[VisionConnector Debug] Image size: {len(image_b64)} bytes (base64)")
             print(f"[VisionConnector Debug] Using {'chat' if self.is_qwen_vl() else 'generate'} API")
+            print(f"[VisionConnector Debug] Using {'chat' if self.is_qwen_vl() else 'generate'} API")
 
             response = requests.post(
                 api_endpoint,
@@ -143,6 +177,7 @@ class VisionConnector:
             
             data = response.json()
             
+            if self.is_qwen_vl():
             if self.is_qwen_vl():
                 message = data.get("message", {})
                 response_text = message.get("content", "").strip()
@@ -161,6 +196,7 @@ class VisionConnector:
                 print(f"⚠️ [VisionConnector] Model {self.model} returned empty response!")
                 print(f"[VisionConnector Debug] Full API response: {data}")
                 if self.is_qwen_vl():
+                if self.is_qwen_vl():
                     return "The screen shows various applications and content."
             
             return response_text
@@ -176,6 +212,8 @@ class VisionConnector:
         except requests.exceptions.HTTPError as e:
             raise VisionConnectorError(f"HTTP 錯誤: {e.response.status_code} - {e.response.text}")
         except Exception as e:
+            raise VisionConnectorError(f"未知錯誤: {str(e)}")       
+ 
             raise VisionConnectorError(f"未知錯誤: {str(e)}")       
  
         print(f"❌ 分析失敗: {e}")
