@@ -50,3 +50,5 @@ tools/model_training/config_v1_baseline_bf16.yaml
 tools/model_training/config_v2_mlp_persona_bf16.yaml
 tools/model_training/config_v4_anti_loop_bf16.yaml
 tools/model_training/config_v3_quant_safe_bf16.yaml
+.env
+*.approval_log.json
