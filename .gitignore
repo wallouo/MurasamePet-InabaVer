@@ -5,6 +5,7 @@ env/
 
 # Python cache
 __pycache__/
+.__pycache__
 *.pyc
 *.pyo
 *.pyd
@@ -42,3 +43,10 @@ temp/
 
 # Assets
 assets/audio/
+__pycache__/api.cpython-39.pyc
+__pycache__/api.cpython-39.pyc
+__pycache__/api.cpython-39.pyc
+tools/model_training/config_v1_baseline_bf16.yaml
+tools/model_training/config_v2_mlp_persona_bf16.yaml
+tools/model_training/config_v4_anti_loop_bf16.yaml
+tools/model_training/config_v3_quant_safe_bf16.yaml

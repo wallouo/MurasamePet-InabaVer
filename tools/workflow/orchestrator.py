@@ -1,6 +1,5 @@
 import os
 import re
-import time
 import random
 import json
 import requests
@@ -8,21 +7,28 @@ import ast
 import threading
 from typing import Optional, Dict, Any
 
+# --- 路徑自動定位 ---
+# 1. 取得目前腳本所在的目錄 (tools/workflow)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# 2. 推導出專案根目錄 (往上推兩層: workflow -> tools -> 根目錄)
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+
+# 3. 指定工具設定檔的絕對路徑 (放在 workflow 資料夾內)
+LESSONS_FILE = os.path.join(SCRIPT_DIR, "lessons_learned.json")
+CONTEXT_FILE = os.path.join(SCRIPT_DIR, "context.md")
 # --- 環境變數 ---
-PPLX_KEY = os.environ.get("PPLX_API_KEY")
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 OPENAI_KEY = os.environ.get("OPENAI_API_KEY")
 
-if not PPLX_KEY or not OPENAI_KEY:
-    raise SystemExit("❌ 找不到 API Key。請確認 PPLX_API_KEY 與 OPENAI_API_KEY 已設定。")
+if not GEMINI_KEY or not OPENAI_KEY:
+    raise SystemExit("❌ 找不到 API Key。請確保已設定環境變數 GEMINI_API_KEY 與 OPENAI_API_KEY。")
 
-HEADERS_PPLX = {"Authorization": f"Bearer {PPLX_KEY}", "Content-Type": "application/json"}
 HEADERS_OPENAI = {"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"}
 
-LOCK = threading.RLock()
-
-# ------------- 基礎工具 -------------
-
-def retry_with_backoff(call_fn, tries=5, base=1.0, max_delay=30.0):
+# ------------- 基礎工具與錯題本 (Persistent Memory) -------------
+def retry_with_backoff(call_fn, tries=3, base=1.0, max_delay=30.0):
+    import time
+    resp = None
     for attempt in range(1, tries + 1):
         resp = call_fn()
         if resp is None:
@@ -31,29 +37,41 @@ def retry_with_backoff(call_fn, tries=5, base=1.0, max_delay=30.0):
             return resp
         if resp.status_code in (429, 502, 503, 504):
             wait = min(max_delay, base * (2 ** (attempt - 1)) * (1 + random.random() * 0.1))
-            print(f"Rate/Server error {resp.status_code}, backing off {wait:.1f}s (attempt {attempt}/{tries})")
+            print(f"⏳ [API 忙碌] 狀態碼 {resp.status_code}，等待 {wait:.1f} 秒後重試 (第 {attempt}/{tries} 次)...")
             time.sleep(wait)
-            continue
-        print("Non-retriable error:", resp.status_code, resp.text[:300])
-        return resp
-    print("Exceeded API retries")
-    return None
+        else:
+            return resp
 
 def load_context() -> str:
-    try:
-        with open("context.md", "r", encoding="utf-8") as f:
+    if os.path.exists(CONTEXT_FILE):
+        with open(CONTEXT_FILE, "r", encoding="utf-8") as f:
             return f.read()
-    except FileNotFoundError:
-        return ""
+    return "No context provided."
 
-def extract_json_block(text: str) -> dict:
-    """強化版 JSON 解析，處理 LLM 可能加上 ```json ``` 標籤的情況"""
-    try:
-        m = re.search(r"```(?:json)?\n(.*?)```", text, flags=re.S)
-        raw_str = m.group(1).strip() if m else text.strip()
-        return json.loads(raw_str)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON format: {e}\nRaw output: {text}")
+def load_lessons() -> str:
+    """🌟 載入歷史教訓"""
+    if os.path.exists(LESSONS_FILE):
+        try:
+            with open(LESSONS_FILE, "r", encoding="utf-8") as f:
+                lessons = json.load(f)
+                if lessons:
+                    return "\n".join([f"- {l}" for l in lessons])
+        except Exception:
+            pass
+    return "目前無歷史教訓。"
+
+def save_lesson(lesson: str):
+    """🌟 儲存新教訓到錯題本"""
+    lessons = []
+    if os.path.exists(LESSONS_FILE):
+        try:
+            with open(LESSONS_FILE, "r", encoding="utf-8") as f:
+                lessons = json.load(f)
+        except Exception:
+            pass
+    lessons.append(lesson)
+    with open(LESSONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(lessons, f, indent=2, ensure_ascii=False)
 
 def safe_ast_check(code: str) -> Optional[str]:
     try:
@@ -62,182 +80,384 @@ def safe_ast_check(code: str) -> Optional[str]:
     except Exception as e:
         return str(e)
 
-def dangerous_pattern_scan(code: str) -> list:
-    """已加入 rm -rf 等系統破壞性指令的嚴格靜態掃描"""
-    patterns = [
-        r"\beval\s*\(", r"\bexec\s*\(", r"subprocess\.Popen", 
-        r"os\.system", r"requests\.post\(", 
-        r"rm\s+-rf", r"shutil\.rmtree", r"os\.remove", # 新增刪除檔案的高危指令
-        r"OPENAI_API_KEY", r"PPLX_API_KEY"
-    ]
-    found = [p for p in patterns if re.search(p, code)]
-    return found
+def dangerous_pattern_scan(code: str) -> Optional[str]:
+    DANGEROUS = [r"\beval\s*\(", r"\bexec\s*\(", r"os\.system", r"subprocess", r"rm\s+-rf"]
+    found = [p for p in DANGEROUS if re.search(p, code)]
+    return ", ".join(found) if found else None
 
-# ------------- Agent 介面 (嚴格遵循 v2 Schema) -------------
+# ------------- Agents -------------
 
-def ask_architect(task: str) -> Optional[Dict[str, Any]]:
-    print(f"📐 [Architect] Planning task: {task}")
-    prompt = (
-        "You are a Lead Software Architect. Provide a detailed implementation plan.\n"
-        "You MUST output STRICTLY JSON matching this schema:\n"
-        "{\n  \"goal\": \"...\",\n  \"files\": [\"file1.py\", ...],\n  \"architecture\": \"...\",\n  \"constraints\": [\"...\"]\n}\n"
-    )
-    data = {
-        "model": "sonar-pro",
-        "messages": [
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": f"Context:\n{load_context()}\n\nTask: {task}"}
-        ]
+def ask_architect(state: dict) -> bool:
+    model_name = state.get("architect_model", "gemini-3-flash-preview")
+    print(f"📐 [Architect] 規劃系統架構中... (Planning architecture...)")
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_KEY}"
+    
+    # 🌟 Gemini 的嚴格結構化輸出 Schema
+    json_schema = {
+        "type": "OBJECT",
+        "properties": {
+            "goal": {"type": "STRING", "description": "系統目標與核心邏輯簡述"},
+            "files": {"type": "ARRAY", "items": {"type": "STRING"}, "description": "需要建立或修改的檔案路徑清單"},
+            "architecture": {"type": "STRING", "description": "架構設計與設計模式說明"},
+            "constraints": {"type": "ARRAY", "items": {"type": "STRING"}, "description": "開發限制、資安注意事項與效能要求"}
+        },
+        "required": ["goal", "files", "architecture", "constraints"]
     }
-    resp = retry_with_backoff(lambda: requests.post("https://api.perplexity.ai/chat/completions", json=data, headers=HEADERS_PPLX, timeout=30))
+    
+    lessons = load_lessons()
+    sys_prompt = f"你是頂尖的軟體架構師。請根據 Context 與 Task 進行系統規劃。\n\n⚠️ 絕對要遵守的歷史教訓：\n{lessons}"
+    
+    payload = {
+        "system_instruction": {"parts": [{"text": sys_prompt}]},
+        "contents": [{"role": "user", "parts": [{"text": f"Context:\n{load_context()}\n\nTask: {state['task']}"}]}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "response_mime_type": "application/json",
+            "response_schema": json_schema
+        }
+    }
+
+    headers = {"Content-Type": "application/json"}
+
+    try:
+        # 使用 retry_with_backoff 發送請求，增加穩定性
+        resp = retry_with_backoff(lambda: requests.post(url, json=payload, headers=headers, timeout=90))
+        
+        if resp and resp.status_code == 200:
+            raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+            state["plan"] = json.loads(raw_text)
+            return True
+        elif resp:
+            # 💡 抓取 API 回傳的真實錯誤碼 (例如 400 格式錯誤, 403 沒權限)
+            print(f"❌ [API 錯誤] 狀態碼: {resp.status_code}")
+            print(f"❌ [API 回應]: {resp.text}")
+        else:
+            print("❌ [API 錯誤] 請求完全失敗 (可能網路斷線或超時)")
+            
+    except Exception as e:
+        # 💡 抓取 Python 執行時的崩潰 (例如 JSON 解析錯誤)
+        print(f"❌ [程式例外]: {type(e).__name__} - {e}")
+        print("🚨 規劃失敗")
+        
+    return False
+
+    headers = {"Content-Type": "application/json"}
+    resp = retry_with_backoff(lambda: requests.post(url, json=payload, headers=headers, timeout=90))
+    
     if resp and resp.status_code == 200:
         try:
-            return extract_json_block(resp.json()["choices"][0]["message"]["content"])
-        except ValueError as e:
-            print(f"Architect JSON parsing failed: {e}")
-    return None
+            raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+            state["plan"] = json.loads(raw_text)
+            return True
+        except Exception as e:
+            print(f"❌ [程式例外]: {type(e).__name__} - {e}")
+            print("🚨 規劃失敗")
+    else:
+        if resp: print(f"⚠️ Architect API 錯誤: {resp.status_code} - {resp.text}")
+    return False
 
-def ask_coder(plan: Dict, target_file: str, feedback: list = None) -> Optional[str]:
-    print(f"💻 [Coder] Writing code for {target_file}...")
+def ask_coder(state: dict) -> bool:
+    print(f"💻 [Coder] 撰寫程式碼中... (Generating code for {state['target_file']})...")
+    lessons = load_lessons()
     
-    sys_prompt = (
-        "You are an Expert Python Developer. Follow the architect's plan strictly. "
-        "No hidden side effects. No shell/system execution.\n"
-        "Output STRICTLY JSON matching this schema:\n"
-        "{\n  \"files\": {\n    \"filename.py\": \"code...\"\n  }\n}"
-    )
-    
-    user_content = f"Plan:\n{json.dumps(plan, indent=2)}\n\nWrite code for: {target_file}."
-    if feedback:
-        print(f"⚠️ [Coder] Applying feedback from previous failure: {feedback}")
-        user_content += f"\n\nCRITICAL ISSUES TO FIX from previous review:\n{json.dumps(feedback, indent=2)}"
+    # 🌟 1. 組裝純文字的 Prompt (完全放棄 JSON 格式要求，降低模型編碼負擔)
+    prompt = f"""你是一個頂尖的 Python Coder。
+請根據以下的架構計畫，生成指定的檔案程式碼。
 
+⚠️ 絕對要遵守的歷史教訓：
+{lessons}
+
+🎯 目標檔案: {state['target_file']}
+
+📋 架構計畫:
+{json.dumps(state['plan'], ensure_ascii=False, indent=2)}
+
+🚨 錯誤回饋 (若有，請務必修正):
+{state['errors']}
+
+請直接輸出完整 Python 程式碼，並使用 ```python 和 ``` 標籤包裝。不需要任何額外的解釋。"""
+
+    # 🌟 2. 依照官方 Codex 呼叫方式：input 為單一純字串，並開啟 reasoning
     data = {
-        "model": "gpt-5.2-codex", # 替換為你實際使用的 OpenAI 模型 (如 gpt-4o)
-        "messages": [
-            {"role": "system", "content": sys_prompt},
+        "model": "gpt-5-codex",
+        "input": prompt,
+        "reasoning": { "effort": "high" }
+    }
+    
+    try:
+        # 🌟 3. 確保加上 timeout=300，並呼叫專屬的 v1/responses 端點
+        resp = retry_with_backoff(lambda: requests.post("https://api.openai.com/v1/responses", json=data, headers=HEADERS_OPENAI, timeout=300))
+        
+        if resp and resp.status_code == 200:
+            resp_json = resp.json()
+            raw_text = ""
+            
+            # 依照 v1/responses 的結構提取文字
+            for item in resp_json.get("output", []):
+                if item.get("type") == "message":
+                    for c in item.get("content", []):
+                        if c.get("type") == "output_text":
+                            raw_text = c.get("text", "")
+            
+            # 🌟 4. 使用正則表達式精準提取 ```python ... ``` 裡面的純程式碼
+            match = re.search(r'```(?:python)?\s*(.*?)\s*```', raw_text, re.DOTALL | re.IGNORECASE)
+            if match:
+                state["code"] = match.group(1).strip()
+            else:
+                # 如果模型很調皮沒有加上標籤，直接濾掉反引號當作純程式碼
+                state["code"] = raw_text.replace("```", "").strip()
+                
+            return bool(state["code"])
+            
+        elif resp:
+            print(f"❌ [Coder API 錯誤] 狀態碼: {resp.status_code}")
+            print(f"❌ [Coder API 回應]: {resp.text}")
+        else:
+            print("❌ [Coder API 錯誤] 請求完全失敗 (網路斷線或超時)")
+            
+    except Exception as e:
+        print(f"❌ [Coder 執行例外]: {type(e).__name__} - {e}")
+        if 'raw_text' in locals():
+            print(f"📄 原始回傳內容: {raw_text[:200]}...")
+            
+    return False
+
+def ask_reviewer(state: dict) -> bool:
+    print(f"🔍 [Reviewer] 審查邏輯與安全性... (Auditing code...)")
+    sys_prompt = "你是嚴格的安全與代碼審查員。檢查程式碼是否符合邏輯，以及是否包含高風險操作 (如刪除檔案、執行未知名令等)。"
+    user_content = f"Task: {state['task']}\n\nCode to review:\n{state['code']}"
+    
+    data = {
+        "model": "gpt-5-codex",
+        # 🌟 同樣移除 format 參數
+        "input": [
+            {"role": "system", "content": sys_prompt + "\n請務必回傳純 JSON，不要包含 Markdown 語法 (如 ```json)。格式為: {\"status\": \"PASS\"/\"FAIL\", \"risk_level\": \"LOW\"/\"MEDIUM\"/\"HIGH\", \"critical_issues\": [\"說明\"], \"summary\": \"總結\"}"},
             {"role": "user", "content": user_content}
         ]
     }
+    
+    try:
+        resp = retry_with_backoff(lambda: requests.post("https://api.openai.com/v1/responses", json=data, headers=HEADERS_OPENAI, timeout=120))
+        
+        if resp and resp.status_code == 200:
+            resp_json = resp.json()
+            raw_text = ""
+            for item in resp_json.get("output", []):
+                if item.get("type") == "message":
+                    for c in item.get("content", []):
+                        if c.get("type") == "output_text":
+                            raw_text = c.get("text", "")
+            
+            # 🌟 防彈 JSON 萃取
+            clean_text = re.sub(r"^```(?:json)?\s*", "", raw_text.strip(), flags=re.IGNORECASE)
+            clean_text = re.sub(r"\s*```$", "", clean_text)
+            
+            state["review"] = json.loads(clean_text)
+            return True
+        elif resp:
+            print(f"❌ [Reviewer API 錯誤] 狀態碼: {resp.status_code}")
+        else:
+            print("❌ [Reviewer API 錯誤] 請求完全失敗")
+            
+    except Exception as e:
+        print(f"❌ [Reviewer 執行例外]: {type(e).__name__} - {e}")
+        if 'raw_text' in locals():
+            print(f"📄 原始回傳內容: {raw_text[:200]}...")
+            
+    return False
+
+def ask_supervisor(state: dict) -> str:
+    print("👔 [Supervisor] 判斷錯誤根源中... (Analyzing root cause...)")
+    prompt = f"Review 失敗了。計畫: {json.dumps(state['plan'])}\n錯誤: {state['review'].get('critical_issues')}\n請問這是架構計畫的問題，還是工程師沒寫好？請只回答 'architect' 或 'coder'。"
+    data = {"model": "gpt-4o-mini", "messages": [{"role": "user", "content": prompt}]}
     resp = retry_with_backoff(lambda: requests.post("https://api.openai.com/v1/chat/completions", json=data, headers=HEADERS_OPENAI, timeout=60))
     if resp and resp.status_code == 200:
-        try:
-            result = extract_json_block(resp.json()["choices"][0]["message"]["content"])
-            # 提取實際程式碼
-            return result.get("files", {}).get(target_file) or list(result.get("files", {}).values())[0]
-        except Exception as e:
-            print(f"Coder JSON parsing failed: {e}")
-    return None
+        decision = resp.json()["choices"][0]["message"]["content"].strip().lower()
+        if "architect" in decision: return "architect"
+    return "coder"
 
-def ask_reviewer(code: str, plan: Dict, strict_mode: bool = False) -> Optional[Dict[str, Any]]:
-    print("🔎 [Reviewer] Auditing generated code...")
-    sys_prompt = (
-        "You are a Senior Security & Code Reviewer. Perform static analysis, logic validation, and detect unsafe operations.\n"
-        "You MUST output STRICTLY JSON. NEVER output free text outside JSON.\n"
-        "Schema:\n"
-        "{\n  \"status\": \"PASS\" or \"FAIL\",\n  \"critical_issues\": [\"issue1\"], (empty if PASS)\n  \"risk_level\": \"LOW\" or \"MEDIUM\" or \"HIGH\",\n  \"summary\": \"...\"\n}\n"
-    )
-    if strict_mode:
-         sys_prompt += "\nWARNING: Previous output was invalid JSON. You MUST output ONLY valid JSON this time."
-
-    data = {
-        "model": "gpt-5.2-codex",
-        "messages": [
-            {"role": "system", "content": sys_prompt},
-            {"role": "user", "content": f"Architect Plan:\n{json.dumps(plan)}\n\nCode to review:\n{code}"}
-        ]
-    }
-    resp = retry_with_backoff(lambda: requests.post("https://api.openai.com/v1/chat/completions", json=data, headers=HEADERS_OPENAI, timeout=30))
+def ask_explainer(state: dict):
+    print("📝 [Explainer] 正在為您總結程式碼亮點...")
+    prompt = f"請用繁體中文，以 3-5 個條列重點，簡短總結以下 Python 程式碼的核心功能與實作亮點：\n{state['code']}"
+    data = {"model": "gpt-4o-mini", "messages": [{"role": "user", "content": prompt}], "temperature": 0.3}
+    resp = retry_with_backoff(lambda: requests.post("https://api.openai.com/v1/chat/completions", json=data, headers=HEADERS_OPENAI, timeout=90))
     if resp and resp.status_code == 200:
-        try:
-            return extract_json_block(resp.json()["choices"][0]["message"]["content"])
-        except ValueError:
-            return None # 解析失敗回傳 None，觸發重試
-    return None
+        state["explanation"] = resp.json()["choices"][0]["message"]["content"].strip()
+    else:
+        state["explanation"] = "無法生成總結。"
 
-# ------------- 執行與佈署 -------------
-
-def stage_for_human_approval(target_file: str, code: str, review: dict):
-    """遵守 Human-Gated 原則：不直接覆蓋檔案，僅產生 staging 檔並紀錄"""
-    staging = target_file + ".staging"
-    os.makedirs(os.path.dirname(target_file) or ".", exist_ok=True)
-    with open(staging, "w", encoding="utf-8") as f:
-        f.write(code)
+# ------------- 人類審核與儲存 -------------
+def stage_for_human_approval(state: dict) -> str:
+    # 🌟 將使用者輸入的相對路徑，轉換為相對於「專案根目錄」的絕對路徑
+    target = os.path.join(PROJECT_ROOT, state["target_file"])
+    staging = target + ".staging"
     
-    log_file = target_file + ".approval_log.json"
-    with open(log_file, "w", encoding="utf-8") as f:
-        json.dumps(review, indent=2)
+    # 確保目標資料夾存在
+    os.makedirs(os.path.dirname(target) or ".", exist_ok=True)
+    
+    with open(staging, "w", encoding="utf-8") as f:
+        f.write(state["code"])
+    with open(target + ".approval_log.json", "w", encoding="utf-8") as f:
+        json.dump(state["review"], f, indent=2, ensure_ascii=False)
 
-    print(f"\n✅ [Human-Gated Execution] Code verified and staged at: {staging}")
-    print(f"🔒 Awaiting manual approval via Dashboard/OpenClaw to merge into {target_file}.")
+    print(f"\n✅ [Staging] 程式碼已暫存於: {staging}")
+    print("\n" + "="*50)
+    print("💡 【AI 程式碼功能總結】")
+    print(state.get("explanation", "無總結。"))
+    print("="*50 + "\n")
+    
+    # 🌟 增強版選單：加入「紀錄教訓」選項
+    while True:
+        choice = input(f"🔒 [Action Required] 請問要如何處理這個檔案？(Choose an action):\n  [y] 合併 (Merge to target)\n  [r] 重試 (Retry request)\n  [l] 紀錄教訓 (Log a lesson)\n  [n] 放棄 (Abort)\n👉 請選擇 Select (y/r/l/n): ").strip().lower()
+        
+        if choice == 'y':
+            os.replace(staging, target)
+            print(f"🎉 成功！已合併至 {target}")
+            return "merged"
+        elif choice == 'r':
+            return "retry"
+        elif choice == 'l':
+            lesson = input("📝 請輸入要讓系統記住的教訓 (例如：FastAPI 必須使用 Pydantic)：").strip()
+            if lesson:
+                save_lesson(lesson)
+                print(f"✅ 已將教訓寫入錯題本：{lesson}")
+            # 不 return，讓用戶寫完教訓後可以繼續選擇要合併還是重試
+        elif choice == 'n':
+            print("🛑 使用者放棄本次變更。")
+            return "aborted"
+        else:
+            print("❌ 無效輸入。")
 
-# ------------- 主流程 Orchestrator -------------
+# ------------- 主流程 Graph State Machine -------------
+def get_task_from_context() -> str:
+    """自動從 context.md 擷取 Current Task 區塊的內容"""
+    context = load_context()
+    # 使用 Regex 尋找 "Current Task" 標題下的所有內容，直到遇到下一個 "##" 或檔案結束
+    match = re.search(r"##\s*\d*\.?\s*Current Task[^\n]*\n(.*?)(?:##|$)", context, re.IGNORECASE | re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return "無法從 context.md 找到 Current Task 區塊，請確認文件格式。"
 
 if __name__ == "__main__":
-    TASK = "Create a module 'logic/memory.py' that handles saving and loading user memory (name, last_interaction) to a JSON file."
-    target = "logic/memory.py"
+    print("\n" + "="*50)
+    print("🚀 [Init] 歡迎進入自動開發模式 / Welcome to Auto-Dev Mode")
+    print("="*50)
+    
+    # 🌟 自動從 context.md 抓取任務
+    auto_task = get_task_from_context()
+    print("\n📝 [Current Task] 讀取當前任務 / Loaded task from context.md:")
+    print("-" * 40)
+    print(auto_task)
+    print("-" * 40 + "\n")
 
-    # 1. 架構師階段
-    plan = ask_architect(TASK)
-    if not plan or "goal" not in plan:
-        raise SystemExit("🚨 HALT: Architect failed to generate a valid plan JSON.")
-
-    MAX_RETRY = 2
-    retry_count = 0
-    critical_issues = None
-    final_approved_code = None
-    final_review = None
-
-    # 2. 狀態機與重試迴圈
-    while retry_count <= MAX_RETRY:
-        print(f"\n--- 🔄 Iteration {retry_count} / {MAX_RETRY} ---")
+    # 嘗試讓用戶輸入，如果 CMD 跳過或用戶直接按 Enter，就使用自動抓取的任務
+    try:
+        user_task = input("👉 Manual input (Enter to use context task): ").strip()
+    except EOFError:
+        user_task = ""
         
-        # Coder 產出程式碼
-        code = ask_coder(plan, target, feedback=critical_issues)
-        if not code:
-            raise SystemExit("🚨 HALT: Coder failed to generate code.")
+    if not user_task:
+        user_task = auto_task
 
-        # 本地靜態安全檢查 (Fail-Closed: 絕不送 Reviewer)
-        syntax_err = safe_ast_check(code)
-        danger = dangerous_pattern_scan(code)
+    # 🌟 智慧路徑預測：自動從任務內容尋找 .py 檔名
+    default_path = "api.py" # 預設最後防線
+    path_match = re.search(r"`?([a-zA-Z0-9_/\\]+\.py)`?", user_task)
+    if path_match:
+        default_path = path_match.group(1)
+
+    try:
+        user_target = input(f"🎯 [Input] 請輸入目標檔案路徑 / Enter target file path (預設 / Default: {default_path}): ").strip()
+    except EOFError:
+        user_target = ""
         
-        if syntax_err or danger:
-            print(f"⚠️ [Static Analysis Failed] Syntax: {syntax_err}, Danger: {danger}")
-            critical_issues = [f"Syntax Error: {syntax_err}", f"Dangerous Pattern: {danger}"]
-            retry_count += 1
-            continue
+    if not user_target:
+        user_target = default_path
 
-        # Reviewer 審查
-        review = ask_reviewer(code, plan, strict_mode=(retry_count>0))
+    # 初始化全域狀態字典
+    STATE = {
+        "task": user_task,
+        "target_file": user_target,
+        "plan": None,
+        "code": None,
+        "review": None,
+        "errors": [],
+        "explanation": None,
+        "architect_model": "gemini-3-flash-preview"
+    }
+
+    print("\n請選擇本次任務的架構規劃複雜度：")
+    print("  [1] ⚡ 一般任務 (gemini-3-flash-preview)")
+    print("  [2] 🧠 複雜任務 (gemini-2.5-pro)")
+    
+    try:
+        choice = input("👉 請選擇 (1 或 2，直接 Enter 預設為 1): ").strip()
+    except EOFError:
+        choice = ""
         
-        # 檢查 1: JSON 格式無效或缺漏
-        if not review or "status" not in review or "risk_level" not in review:
-            print("⚠️ [Reviewer] Invalid JSON or missing required fields.")
-            retry_count += 1
-            continue
+    if choice == "2":
+        STATE["architect_model"] = "gemini-2.5-pro"
+    
+    print(f"\n✅ 任務啟動：目標檔案 [{STATE['target_file']}]")
+    print(f"✅ 使用模型：{STATE['architect_model']}\n")
 
-        print(f"📊 [Review Result] Status: {review['status']} | Risk: {review['risk_level']}")
+    user_satisfied = False
+
+    while not user_satisfied:
+        STATE["errors"] = []
         
-        # 檢查 2: 高風險直接停機 (Fail-Closed)
-        if review["risk_level"] == "HIGH":
-            raise SystemExit(f"🚨 HALT: Reviewer flagged code as HIGH RISK. Issues: {review.get('critical_issues')}")
+        # 節點 1: Architect
+        if not STATE["plan"]:
+            if not ask_architect(STATE): raise SystemExit("🚨 規劃失敗")
+        
+        retry_count = 0
+        while retry_count < 3:
+            print(f"\n--- 🔄 開發循環 Iteration {retry_count+1}/3 ---")
+            
+            # 節點 2: Coder
+            if not ask_coder(STATE): raise SystemExit("🚨 編碼失敗")
+            
+            # 節點 3: 靜態檢查
+            syntax_err = safe_ast_check(STATE["code"])
+            danger = dangerous_pattern_scan(STATE["code"])
+            if syntax_err or danger:
+                STATE["errors"] = [f"Syntax: {syntax_err}", f"Danger: {danger}"]
+                retry_count += 1
+                continue
+                
+            # 節點 4: Reviewer
+            if not ask_reviewer(STATE):
+                retry_count += 1
+                continue
+            
+            rev = STATE["review"]
+            print(f"📊 [Review Result] Status: {rev.get('status')} | Risk: {rev.get('risk_level')}")
+            
+            if rev.get("risk_level") == "HIGH":
+                raise SystemExit(f"🚨 高風險代碼，強制終止: {rev.get('critical_issues')}")
+            
+            if rev.get("status") == "FAIL":
+                STATE["errors"] = rev.get("critical_issues", ["Unknown"])
+                next_node = ask_supervisor(STATE)
+                print(f"👔 Supervisor 決定退回給: {next_node}")
+                if next_node == "architect":
+                    STATE["plan"] = None
+                    break
+                else:
+                    retry_count += 1
+                    continue
 
-        # 檢查 3: 邏輯或安全不通過，退回給 Coder
-        if review["status"] == "FAIL":
-            print(f"❌ [Reviewer FAILED] Issues: {review.get('critical_issues')}")
-            critical_issues = review.get("critical_issues", ["Unknown failure reason"])
-            retry_count += 1
-            continue
+            break
+            
+        if not STATE["code"] or STATE["review"].get("status") != "PASS":
+            raise SystemExit("🚨 達到最大重試次數，任務失敗。")
 
-        # 檢查 4: 通過且風險在可控範圍
-        if review["status"] == "PASS" and review["risk_level"] in ["LOW", "MEDIUM"]:
-            final_approved_code = code
-            final_review = review
-            break # 成功跳出迴圈
-
-    # 3. 迴圈結束判定
-    if not final_approved_code:
-        raise SystemExit("🚨 HALT: Max retries reached or conditions not met. Pipeline aborted.")
-
-    # 4. 人類授權執行
-    stage_for_human_approval(target, final_approved_code, final_review)
+        # 節點 5: Explainer & Human
+        ask_explainer(STATE)
+        action = stage_for_human_approval(STATE)
+        
+        if action in ("merged", "aborted"):
+            user_satisfied = True
+        elif action == "retry":
+            print("\n🚀 重新啟動整個開發流程...\n")
+            STATE["plan"] = None

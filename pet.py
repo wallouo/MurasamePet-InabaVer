@@ -10,12 +10,16 @@ import os
 import sys
 import json
 import random
+from time import time
 import requests
 import numpy as np  # ✅ 新增
 import mss  # ✅ 新增
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
 from vision.screen_monitor import ScreenChangeMonitor, MonitorConfig
 from vision.vision_connector import VisionConnector
+
+import requests
+print(requests.get("http://localhost:11434/api/tags").json())
 
 API_PORT = os.getenv("API_PORT", "5000")
 API_URL = f"http://127.0.0.1:{API_PORT}"
@@ -185,8 +189,8 @@ class PetWindow(QtWidgets.QLabel):
         self._update_head_rect()
 
         # Initialize Vision System
-        print("🔧 [Init] Initializing Vision System (qwen3-vl-4b)...")
-        self.vision_connector = VisionConnector(model="qwen3-vl-4b")
+        print("🔧 [Init] Initializing Vision System (qwen3-vl:4b-instruct)...")
+        self.vision_connector = VisionConnector(model="qwen3-vl:4b-instruct")
         self.screen_monitor = ScreenChangeMonitor(
             MonitorConfig(
                 threshold=0.20,           # Increased to 20% to reduce sensitivity
@@ -346,6 +350,9 @@ class PetWindow(QtWidgets.QLabel):
         chat_action = menu.addAction("開啟對話 (Open Chat)")
         chat_action.triggered.connect(self.toggle_chat_input)
         
+        vision_action = menu.addAction("觀察螢幕 (Observe Screen)")
+        vision_action.triggered.connect(self.trigger_vision_analysis)
+        
         pat_action = menu.addAction("摸頭 (Pat)")
         pat_action.triggered.connect(self.trigger_pat)
         
@@ -467,6 +474,11 @@ class PetWindow(QtWidgets.QLabel):
             traceback.print_exc()
             self.subtitle.show_text("(pat failed)", self.geometry())
 
+    def trigger_vision_analysis(self):
+        """手動觸發視覺分析（繞過冷卻）"""
+        print("[Debug] Manual vision analysis triggered!")
+        self.analyze_screen_and_comment(force=True)
+
     def on_scene_changed(self, score: float):
         """場景變化時觸發"""
         print(f"場景變化: {score:.2f}")
@@ -477,14 +489,14 @@ class PetWindow(QtWidgets.QLabel):
         print("定時檢查觸發")
         self.analyze_screen_and_comment()
 
-    def analyze_screen_and_comment(self):
+    def analyze_screen_and_comment(self, force=False):
         """Capture Screen -> Moondream Analysis -> Qwen Comment -> TTS"""
         import time
         import re
         
         # Cooldown Check
         current_time = time.time()
-        if current_time - self._last_vision_trigger < self._vision_cooldown:
+        if not force and current_time - self._last_vision_trigger < self._vision_cooldown:
             print(f"⏳ Vision Cooldown: wait {int(self._vision_cooldown - (current_time - self._last_vision_trigger))}s")
             return
             
@@ -505,9 +517,12 @@ class PetWindow(QtWidgets.QLabel):
                 self.chat_input.hide()
             
             # CRITICAL: Ensure proper hide timing
-            QtWidgets.QApplication.processEvents() # Process hide event
-            time.sleep(0.5) # Increased to 500ms for stability
-            QtWidgets.QApplication.processEvents() # Ensure background redraws
+            self.setWindowOpacity(0.0)
+            self.subtitle.setWindowOpacity(0.0)
+            QtWidgets.QApplication.processEvents()
+            time.sleep(0.3)  # 透明化比 hide 快很多，300ms 就夠
+            self.setWindowOpacity(1.0)
+            self.subtitle.setWindowOpacity(1.0)
 
             # 3. Capture Screen
             with mss.mss() as sct:
@@ -551,21 +566,9 @@ class PetWindow(QtWidgets.QLabel):
                 return
 
             # 7. 🔥 SEND TO QWEN (ENFORCE CHINESE) 🔥
-            qwen_prompt = f"""SYSTEM: You are Inaba Meguru (巡), a cute anime character observing the user's screen.
-USER'S SCREEN: {description}
-TASK: Make ONE short comment in TRADITIONAL CHINESE (繁體中文) about what you see.
-RULES:
-- MUST respond in Traditional Chinese (繁體中文) ONLY
-- Maximum 15 characters
-- React naturally, don't describe
-- Be playful and cute
-- Don't mention "screen" or "computer"
-EXAMPLES:
-- "哇，看起來好好玩～"
-- "這個我也想試試！"
-- "在忙什麼呢？"
-- "好厲害喔～"
-YOUR RESPONSE (Traditional Chinese only):"""
+            qwen_prompt = f"""センパイのパソコン画面を横から覗き見てしまった。
+画面の内容：{description}
+この画面を見て、めぐるとして一言だけ自然に反応して。短めにね。"""
 
             resp = requests.post(
                 f"{API_URL}/chat_process",

@@ -7,8 +7,8 @@ TTS 策略：
 3. Mock (保底)
 """
 from __future__ import annotations
+import re
 import hashlib
-import json
 import math
 import os
 import random
@@ -20,14 +20,15 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import re
+from translation import translate
+from logic.memory import MemoryManager
+from logic.calendar_event import get_holiday_hint
+from logic.time_greeter import get_time_greeting
+_memory = MemoryManager()   # singleton，啟動時初始化一次
 
 # -------------------- 環境變數 --------------------
 OLLAMA_ENDPOINT = "http://127.0.0.1:11434"
 OLLAMA_MODEL = "meguru"
-OLLAMA_TEMPERATURE = float(os.getenv('OLLAMA_TEMPERATURE', '0.6'))
-OLLAMA_TOP_P = float(os.getenv('OLLAMA_TOP_P', '0.9'))
-OLLAMA_NUM_PREDICT = int(os.getenv('OLLAMA_NUM_PREDICT', '120'))
 
 VITS_ENDPOINT = os.getenv('VITS_ENDPOINT', 'http://127.0.0.1:23456')
 VITS_SPEAKER_ID = int(os.getenv('VITS_SPEAKER_ID', '88'))
@@ -47,86 +48,126 @@ class UserChatRequest(BaseModel):
     text: str
     user_id: str = "master"
 
-@app.post('/chat_process')
+@app.post("/chat_process")
 async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
-    """處理用戶聊天請求，調用 Ollama 並返回 TTS 音頻"""
     user_text = req.text.strip()
-    
-    # 1. 建構標準 Chat 訊息列表
-    # 因為 System Prompt 已在 Modelfile 設定，這裡不需要再傳送 system role
-    chat_messages = [
-        {"role": "user", "content": user_text}
-    ]
 
-    # 2. 準備 Payload
+    # 1. 讀記憶
+    mem        = _memory.get()
+    user_name  = mem.get("name", "").strip()
+    last_topic = mem.get("last_topic", "").strip()
+
+    # 2. 建立 context_hint
+    context_parts: list[str] = []
+    holiday_hint = get_holiday_hint()
+    if holiday_hint:
+        context_parts.append(f"[今日のイベント: {holiday_hint}]")
+    time_info = get_time_greeting()
+    context_parts.append(f"[現在の時間帯: {time_info['text']}]")
+    if user_name:
+        context_parts.append(f"[ユーザー名: {user_name}]")
+    if last_topic:
+        context_parts.append(f"[前回の話題: {last_topic}]")
+    context_hint = "\n".join(context_parts)
+
+    # 3. 組 prompt
+    injected = f"{context_hint}\n\nユーザーの発言: {user_text}" if context_hint else user_text
     ollama_payload = {
-        "model": OLLAMA_MODEL,
-        "messages": chat_messages,
-        "stream": False,
-        "options": {
-            "num_gpu": -1,      # 自動使用 GPU
-            # 預設與 Modelfile 一致，避免桌寵與 CLI 行為差異過大。
-            "temperature": OLLAMA_TEMPERATURE,
-            "top_p": OLLAMA_TOP_P,
-            "num_predict": OLLAMA_NUM_PREDICT,
-        }
+        "model":   OLLAMA_MODEL,
+        "messages": [{"role": "user", "content": injected}],
+        "stream":  False,
+        "options": {"num_gpu": -1},
     }
 
     print(f"[聊天] 使用者: {user_text}")
 
+    # 4. 呼叫 Ollama
+    ai_reply_text = ""
     try:
-        # 3. 發送請求 (使用標準 /api/chat)
-        ollama_resp = requests.post(
-            f"{OLLAMA_ENDPOINT}/api/chat",
-            json=ollama_payload,
-            timeout=60.0 # 給予足夠時間生成
-        )
-        
-        ollama_resp.raise_for_status()
-        response_json = ollama_resp.json()
-        
-        # 4. 解析回應 (Chat API 回傳在 message.content)
-        ai_reply_text = response_json.get("message", {}).get("content", "").strip()
-        
-        # ===== 清洗輸出：檢測非預期的英文（使用白名單機制）=====
-        # 允許的英文詞彙白名單
-        allowed_english_words = ["ciallo", "Ciallo", "CIALLO"]
-        
-        # 移除白名單詞彙後檢測
-        temp_text = ai_reply_text
-        for word in allowed_english_words:
-            temp_text = temp_text.replace(word, "")
-        
-        # 檢測剩餘內容中的英文（連續3個以上英文字母）
-        if re.search(r'[a-zA-Z]{3,}', temp_text):
-            print(f"[聊天警告] 偵測到非預期的英文輸出: {ai_reply_text}")
-            # 如果出現非預期英文，可能是模型錯亂
-            # 這裡簡單處理：記錄警告但不阻止輸出
-            pass
+        resp = requests.post(f"{OLLAMA_ENDPOINT}/api/chat", json=ollama_payload, timeout=60.0)
+        resp.raise_for_status()
+        ai_reply_text = resp.json().get("message", {}).get("content", "").strip()
 
-        if not ai_reply_text:
-            ai_reply_text = "えっと...何か言おうとしたんだけど、忘れちゃった♪"
+        temp = ai_reply_text
+        for w in ["ciallo", "Ciallo", "CIALLO"]:
+            temp = temp.replace(w, "")
+        if re.search(r"[a-zA-Z]{3,}", temp):
+            print(f"[聊天警告] 非預期英文: {ai_reply_text}")
 
-        print(f"[聊天] 巡: {ai_reply_text}")
+        ai_reply_text = ai_reply_text or "えっと...何か言おうとしたんだけど、忘れちゃった♪"
+        print(f"[聊天] めぐる: {ai_reply_text}")
 
     except Exception as e:
         print(f"[聊天錯誤] {type(e).__name__}: {e}")
         ai_reply_text = "ごめん、ちょっと考えすぎちゃった..."
-    
-    # TTS 和返回
-    # 這裡假設回覆是純日文，所以中日文欄位都填一樣的
-    # 如果未來要做翻譯，可以在這裡呼叫翻譯 API
-    subtitle_zh = ai_reply_text 
-    
-    tts_result = await tts(TTSRequest(ja=ai_reply_text, zh=subtitle_zh))
+
+    # 5. 更新記憶
+    try:
+        _memory.set(last_topic=user_text[:80])
+    except Exception as e:
+        print(f"[記憶] 寫入失敗: {e}")
+
+    # 6. emotion 推斷
+    emotion = _infer_emotion(ai_reply_text, fallback=time_info["emotion"])
+
+    # 7. TTS
+    tts_result = await tts(TTSRequest(ja=ai_reply_text, zh=ai_reply_text))
 
     return {
-        "text": ai_reply_text,
-        "subtitle_zh": subtitle_zh,
-        "wav_path": tts_result["wav_path"],
-        "emotion": "happy",
-        "backend": tts_result["backend"]
+        "text":        ai_reply_text,
+        "subtitle_zh": ai_reply_text,
+        "wav_path":    tts_result["wav_path"],
+        "emotion":     emotion,
+        "backend":     tts_result["backend"],
     }
+
+
+def _infer_emotion(text: str, fallback: str = "neutral") -> str:
+    if any(p in text for p in ["わあ", "すごい", "やったー", "えへへ", "！！"]):
+        return "excited"
+    if any(p in text for p in ["ねむ", "つかれ", "しんど", "もう寝", "遅い"]):
+        return "tired"
+    if any(p in text for p in ["♪", "うふふ", "えへ", "ありがとう", "よかっ"]):
+        return "happy"
+    return fallback
+
+
+@app.post("/pat")
+async def pat() -> Dict[str, Any]:
+    greeting = get_time_greeting()
+    result   = await chat_process(UserChatRequest(text=f"*撫でられる* {greeting['text']}"))
+    if result.get("emotion") == "neutral":
+        result["emotion"] = greeting["emotion"]
+    return result
+
+
+@app.post("/greet")
+async def greet() -> Dict[str, Any]:
+    holiday_hint = get_holiday_hint()
+    time_info    = get_time_greeting()
+    text = f"{time_info['text']} あと、{holiday_hint}" if holiday_hint else time_info["text"]
+    tts_res = await tts(TTSRequest(ja=text, zh=text))
+    return {"text": text, "subtitle_zh": text,
+            "wav_path": tts_res["wav_path"], "emotion": time_info["emotion"],
+            "backend": tts_res["backend"]}
+
+
+class MemoryUpdateRequest(BaseModel):
+    name:       Optional[str] = None
+    last_topic: Optional[str] = None
+    mood:       Optional[str] = None
+
+@app.get("/memory")
+async def memory_read() -> Dict[str, Any]:
+    return _memory.get()
+
+@app.post("/memory")
+async def memory_write(req: MemoryUpdateRequest) -> Dict[str, Any]:
+    try:
+        _memory.set(name=req.name, last_topic=req.last_topic, mood=req.mood)
+        return {"status": "ok", "memory": _memory.get()}
+    except TypeError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 # -------------------- 雙語回覆 (保留介面) --------------------
 class ReplyBiRequest(BaseModel):
@@ -263,17 +304,6 @@ async def say(req: SayRequest) -> Dict[str, Any]:
         "subtitle_zh": zh or ja,
         "backend": tts_res.get("backend", "unknown")
     }
-
-# -------------------- /pat --------------------
-@app.post('/pat')
-async def pat() -> Dict[str, Any]:
-    """摸头端点 - 让模型自由回应"""
-    # 给模型一个摸头的上下文，让它自由回应
-    return await chat_process(UserChatRequest(
-        text="*摸摸头*",  # 模拟摸头动作，让模型做出反应
-        user_id="master"
-    ))
-
 
 # -------------------- 工具函式 --------------------
 

@@ -1,0 +1,37 @@
+[
+  {
+    "lesson": "File Modification Integrity & Logical Consistency",
+    "issues": [
+      "The Agent tends to over-simplify existing complex functions (e.g., TTS processing and WAV merging), leading to functional regression.",
+      "Although the Agent instantiates the memory class, it often forgets to invoke the read methods (e.g., `memory.get()`), resulting in context loss.",
+      "The Agent frequently hallucinates and alters environment variable names on its own, breaking the existing configuration system."
+    ],
+    "requirements": [
+      "When modifying `api.py`, you MUST ensure that variables within the System Prompt (name, mood, topic) are explicitly fetched using `memory.get()`.",
+      "Strictly DO NOT modify any existing function logic related to audio processing or WAV merging.",
+      "You must adhere strictly to the environment variable names defined in `context.md` (e.g., use `OLLAMA_ENDPOINT` instead of `OLLAMA_URL`)."
+    ]
+  },
+  {
+    "lesson": "File Boundaries & Import Conventions",
+    "issue": "The Agent previously merged the contents of multiple files (e.g., `logic/memory.py` and `api.py`) and output them into a single file, completely destroying the project structure.",
+    "countermeasure": "When making modifications, ONLY output the code for the specified target file. Cross-module calls must be implemented via standard `import` statements. Direct copy-pasting of source code from other files is strictly prohibited."
+  },
+  {
+    "lesson": "Audio Processing & TTS Logic Integrity",
+    "issue": "When integrating new features like the memory system, the Agent tends to silently simplify or overwrite the existing Text-to-Speech (TTS) and audio playback logic.",
+    "countermeasure": "Treat all TTS and audio-related functions as read-only. Do not refactor or remove them unless explicitly instructed by the human supervisor."
+  },
+  {
+    "lesson": "Prompt Strictness: Over-Roleplaying & Over-Engineering",
+    "issues": [
+      "The Agent tends to 'roleplay' by injecting global context character names (e.g., 'Inaba Meguru') into plain text string outputs.",
+      "When explicitly instructed to use exact strings, the Agent often over-engineers by abstracting string literals into constants (e.g., `MORNING_GREETING`) and altering hardcoded business logic (e.g., changing morning time ranges from 5 AM to 6 AM)."
+    ],
+    "requirements": [
+      "When exact string outputs are required, explicitly enforce 'Exact String Matching' in the prompt and strictly forbid roleplaying or injecting character names.",
+      "Strictly prohibit abstracting string literals into variables or constants. Return raw string literals directly.",
+      "Command the Agent to strictly adhere to the provided numeric and business logic without unauthorized 'Clean Code' refactoring."
+    ]
+  }
+]

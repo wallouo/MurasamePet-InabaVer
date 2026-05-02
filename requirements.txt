@@ -1,5 +1,22 @@
-fastapi
-uvicorn
-requests
-PyQt5
-pydantic
+# --- MurasamePet-Inaba Unified Requirements ---
+
+# UI & Frontend (PyQt5)
+PyQt5>=5.15.0
+PyQt5-sip>=12.11.0
+
+# Screen Capture & Image Processing
+mss>=9.0.0
+numpy>=1.24.0
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# Network & API
+requests>=2.31.0
+
+# Backend API Server (FastAPI)
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+
+# Audio & TTS (System dependent, may need ffmpeg on host)
+# Note: Audio playback in frontend uses QtMultimedia
