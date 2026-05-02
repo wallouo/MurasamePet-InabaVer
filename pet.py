@@ -17,6 +17,9 @@ from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
 from vision.screen_monitor import ScreenChangeMonitor, MonitorConfig
 from vision.vision_connector import VisionConnector
 
+import requests
+print(requests.get("http://localhost:11434/api/tags").json())
+
 API_PORT = os.getenv("API_PORT", "5000")
 API_URL = f"http://127.0.0.1:{API_PORT}"
 
@@ -185,8 +188,8 @@ class PetWindow(QtWidgets.QLabel):
         self._update_head_rect()
 
         # Initialize Vision System
-        print("🔧 [Init] Initializing Vision System (qwen3-vl-4b)...")
-        self.vision_connector = VisionConnector(model="qwen3-vl-4b")
+        print("🔧 [Init] Initializing Vision System (qwen3-vl:4b-instruct)...")
+        self.vision_connector = VisionConnector(model="qwen3-vl:4b-instruct")
         self.screen_monitor = ScreenChangeMonitor(
             MonitorConfig(
                 threshold=0.20,           # Increased to 20% to reduce sensitivity
@@ -346,6 +349,9 @@ class PetWindow(QtWidgets.QLabel):
         chat_action = menu.addAction("開啟對話 (Open Chat)")
         chat_action.triggered.connect(self.toggle_chat_input)
         
+        vision_action = menu.addAction("觀察螢幕 (Observe Screen)")
+        vision_action.triggered.connect(self.trigger_vision_analysis)
+        
         pat_action = menu.addAction("摸頭 (Pat)")
         pat_action.triggered.connect(self.trigger_pat)
         
@@ -467,6 +473,11 @@ class PetWindow(QtWidgets.QLabel):
             traceback.print_exc()
             self.subtitle.show_text("(pat failed)", self.geometry())
 
+    def trigger_vision_analysis(self):
+        """手動觸發視覺分析（繞過冷卻）"""
+        print("[Debug] Manual vision analysis triggered!")
+        self.analyze_screen_and_comment(force=True)
+
     def on_scene_changed(self, score: float):
         """場景變化時觸發"""
         print(f"場景變化: {score:.2f}")
@@ -477,14 +488,14 @@ class PetWindow(QtWidgets.QLabel):
         print("定時檢查觸發")
         self.analyze_screen_and_comment()
 
-    def analyze_screen_and_comment(self):
+    def analyze_screen_and_comment(self, force=False):
         """Capture Screen -> Moondream Analysis -> Qwen Comment -> TTS"""
         import time
         import re
         
         # Cooldown Check
         current_time = time.time()
-        if current_time - self._last_vision_trigger < self._vision_cooldown:
+        if not force and current_time - self._last_vision_trigger < self._vision_cooldown:
             print(f"⏳ Vision Cooldown: wait {int(self._vision_cooldown - (current_time - self._last_vision_trigger))}s")
             return
             

@@ -25,9 +25,6 @@ import re
 # -------------------- 環境變數 --------------------
 OLLAMA_ENDPOINT = "http://127.0.0.1:11434"
 OLLAMA_MODEL = "meguru"
-OLLAMA_TEMPERATURE = float(os.getenv('OLLAMA_TEMPERATURE', '0.6'))
-OLLAMA_TOP_P = float(os.getenv('OLLAMA_TOP_P', '0.9'))
-OLLAMA_NUM_PREDICT = int(os.getenv('OLLAMA_NUM_PREDICT', '120'))
 
 VITS_ENDPOINT = os.getenv('VITS_ENDPOINT', 'http://127.0.0.1:23456')
 VITS_SPEAKER_ID = int(os.getenv('VITS_SPEAKER_ID', '88'))
@@ -57,7 +54,6 @@ async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
     chat_messages = [
         {"role": "user", "content": user_text}
     ]
-
     # 2. 準備 Payload
     ollama_payload = {
         "model": OLLAMA_MODEL,
@@ -65,10 +61,6 @@ async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
         "stream": False,
         "options": {
             "num_gpu": -1,      # 自動使用 GPU
-            # 預設與 Modelfile 一致，避免桌寵與 CLI 行為差異過大。
-            "temperature": OLLAMA_TEMPERATURE,
-            "top_p": OLLAMA_TOP_P,
-            "num_predict": OLLAMA_NUM_PREDICT,
         }
     }
 
