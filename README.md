@@ -1,252 +1,282 @@
 # Project Inaba (MurasamePet-Inaba-clean)
 
-[[English](#english)] | [[中文說明](#chinese)]
+[English](#english) | [中文說明](#chinese)
 
 ---
 
 <a name="english"></a>
-## 🇬🇧 GB English
+## 🇬🇧 English
 
 This is a clean, refactored version based on [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet), featuring a **PyQt5** frontend GUI. It implements head-pat interactions, bilingual text generation, and API services. The project provides a complete backend API, desktop pet frontend, health check scripts, and automated tests for quick setup and testing on Windows.
 
 ### ⚠️ Development Status (Prototype)
 
 This software is currently in the **Early Access / MVP** stage.
+*   You may encounter bugs, unexpected crashes, or unused legacy files.
+*   Features and API structures are subject to change without notice.
+*   Feedback is welcome, but please use it with a "testing" mindset.
 
-- You may encounter bugs, unexpected crashes, or unused legacy files.
-- Features and API structures are subject to change without notice.
-- Feedback is welcome, but please use it with a "testing" mindset.
+---
 
 ### 🤖 AI Models
 
-This project integrates multi-modal AI capabilities for richer interactions:
+| Role | Model | Status |
+|---|---|---|
+| Chat & Roleplay | **meguru** (Qwen 3 8B fine-tune, via Ollama) | ✅ Active |
+| Visual Recognition | **qwen3-vl:4b-instruct** (via Ollama) | ✅ Active |
+| Translation (ZH/EN/JA) | **qwen3.5 2b** (via Ollama, used by `translate.py`) | ✅ Active |
+| Speech Synthesis | VITS (vits-simple-api) + Mock fallback | ✅ Active |
 
-- **Thinking & Chat Model**: Currently powered by **Inaba (Qwen 3.5 4B based)** (via Ollama).
-- **Visual Recognition**: **Qwen 3 VL 4B** allows Inaba to "see" and react to on-screen content.
-- **Speech Synthesis**: Uses a custom TTS solution (VoiceVox dependency has been removed).
+> **Upgrade note (2026-05-02):** The chat model has been migrated from InabaV1 (Qwen 2.5 7B) to **meguru** (Qwen 3 8B fine-tune). Visual recognition with `qwen3-vl:4b-instruct` is now live via the `VisionConnector` module.
+
+---
+
+### ✨ What's New (fix branch — 2026-05-02)
+
+#### 🐛 Bug Fixes
+- **`api.py`**: Fixed broken import `from translation import translate` → corrected to `from translate import translate` (caused FastAPI startup failure `FAILED` on port 5000)
+- **`vision/vision_connector.py`**: Removed duplicate code blocks (entire `__init__`, `is_qwen_vl()`, `image_to_base64()`, `analyze_image()` params were duplicated due to a bad merge), fixing `SyntaxError: invalid syntax` on startup
+- **`vision/vision_connector.py`**: Removed unused `import cv2` and redundant `import io` inside method body
+
+#### 🔨 Refactored Modules
+- **`logic/memory.py`** — Thread-safe rewrite:
+  - Fixed potential deadlock: `_sanitize()` now runs outside `_file_lock`
+  - Added `last_error` property for external error inspection
+  - Background save via `threading.Thread(daemon=True)`
+
+- **`logic/calendar_event.py`** — Expanded holiday system:
+  - All content converted to Japanese (めぐる speech style)
+  - Expanded from 3 to **12 Japanese holidays** (正月, 節分, バレンタイン, ひな祭り, ホワイトデー, エイプリルフール, こどもの日, 七夕, ハロウィン, クリスマスイブ, クリスマス, 大晦日)
+  - Now returns `HolidayEvent` TypedDict with `name`, `hint`, and `emotion` fields
+  - Added `get_holiday_hint()` convenience function for prompt injection
+
+- **`logic/time_greeter.py`** — Full rewrite:
+  - All greetings converted to Japanese (めぐる tone)
+  - Time segments expanded from 4 → **7 segments** (early morning / morning / noon / afternoon / evening / night / late night)
+  - Now returns `TimeGreeting` TypedDict with `text` and `emotion` fields
+
+---
 
 ### Features Overview
 
-- **/qwen3**: Proxy for local Ollama chat interface, returning chat responses and history.
-- **/reply_bi**: Generates bilingual (Chinese/Japanese) responses.
-- **/tts**: Text-to-Speech synthesis service.
-- **/say**: Generates speech from text and returns subtitles, chaining `/qwen3` and `/tts` internally.
-- **/pat**: Simulates head-pat interaction, triggering `/say` to generate a short phrase with voice and subtitles.
-- **Desktop Pet Frontend**: `pet.py` uses PyQt5 to display the character, listens for mouse interactions on the head area, and plays voice/subtitles upon double-click triggers.
+*   **/chat_process**: Main chat endpoint. Injects time-of-day greeting, holiday hint, user name, and last topic into the Ollama prompt automatically.
+*   **/pat**: Head-pat interaction, triggers a contextual response with voice.
+*   **/greet**: Returns a time + holiday aware greeting with TTS.
+*   **/tts**: Text-to-Speech synthesis (predefined audio → VITS → mock fallback).
+*   **/say**: Generates speech from text, internally chains chat and TTS.
+*   **/reply_bi**: Generates bilingual (Chinese/Japanese) responses.
+*   **/memory GET**: Read current memory state (name, last_topic, mood).
+*   **/memory POST**: Update memory fields.
+*   **translate.py**: Translation helper module for multilingual support, used to handle Chinese / English / Japanese conversion before or after model responses.
+*   **Desktop Pet Frontend**: `pet.py` uses PyQt5 to display the character, listens for mouse interactions, and plays voice/subtitles on trigger.
+
+---
 
 ### 📥 Model Setup (Required)
 
-Because the model file is large (~4.7GB), it is not included in the main download. You must download and import it into Ollama manually.
+Two models are required. Install both before running.
 
-1. **Install Ollama**: Download from [ollama.com](https://ollama.com/).
-2. **Download Model Files**:
-   - Download `meguru_q4_k_m.gguf` and `Modelfile` from Hugging Face:
-   - https://huggingface.co/wallouo/Inaba/tree/main
-3. **Import to Ollama**: Open PowerShell in the folder where you downloaded the files and run:
-   ```bash
+#### 1. Chat model — `meguru`
+
+Because the model file is large (~4.7 GB), it is not included in the repo. Download and import manually:
+
+1. **Install Ollama**: [ollama.com](https://ollama.com)
+2. **Download model files** from Hugging Face:
+   [https://huggingface.co/wallouo/InabaV1/tree/main](https://huggingface.co/wallouo/InabaV1/tree/main)
+   — download `meguru_q4_k_m.gguf` and `Modelfile`
+3. **Import to Ollama** — open PowerShell in the download folder:
+   ```powershell
    ollama create meguru -f Modelfile
    ```
-4. **Verify**: Run `ollama list` to confirm that `meguru` is available.
+4. **Verify**: `ollama list` should show `meguru`
 
-### 🎤 VITS Voice Synthesis Setup (Optional)
+#### 2. Vision model — `qwen3-vl:4b-instruct`
 
-This project uses **VITS** for dynamic voice synthesis. If you want Inaba to speak with Meguru's voice, follow these steps:
-
-#### 1. Download the Pre-trained Model
-
-- **Model file**: `G_trilingual.pth`
-- **Config file**: `uma_trilingual.json` (rename to `config.json`)
-- **Source**: [Plachta/VITS-Umamusume-voice-synthesizer](https://huggingface.co/spaces/Plachta/VITS-Umamusume-voice-synthesizer/tree/main/pretrained_models)
-
-Direct link to model:
-```
-https://huggingface.co/spaces/Plachta/VITS-Umamusume-voice-synthesizer/blob/main/pretrained_models/G_trilingual.pth
+```powershell
+ollama pull qwen3-vl:4b-instruct
 ```
 
-#### 2. Install vits-simple-api
+Verify with `ollama list`.
 
-Clone and set up the VITS API server:
+#### 3. Translation model — `qwen3.5 2b`
 
-```bash
-git clone https://github.com/Artrajz/vits-simple-api.git
-cd vits-simple-api
-pip install -r requirements.txt
+This project now includes a translation layer via `translate.py`, used for multilingual support (Chinese / English / Japanese).
+
+```powershell
+ollama pull qwen3.5:2b
 ```
-
-#### 3. Configure the Model
-
-- Place `G_trilingual.pth` in the `Model` folder of `vits-simple-api`
-- Rename `uma_trilingual.json` to `config.json` and place it in the same folder
-- In your API configuration, set **Speaker ID = 88** for Meguru (Sanoba Witch)
-
-#### 4. Start the VITS API Server
-
-```bash
-python app.py
-```
-
-The server will start on `http://localhost:23456` by default.
-
-#### 5. Test the Voice
-
-You can test the voice synthesis at:
-```
-http://localhost:23456/voice/vits?text=天気がいいから、散歩しましょう～&id=88&lang=ja
-```
+---
 
 ### Installation & Prerequisites
 
-1. **Python 3.9.x** or higher is recommended.
-2. Ensure **Ollama** is running and the `meguru` model is created (see step above).
+1. **Python 3.9+** recommended
+2. **Ollama** running with both `meguru` and `qwen3-vl:4b-instruct` loaded (see above)
+3. **VITS** (optional): [vits-simple-api](https://github.com/Artrajz/vits-simple-api) — if not running, TTS falls back to mock audio automatically
+
+---
 
 ### 🚀 How to Run
 
 This project includes a one-click startup script that handles dependency installation and environment setup automatically.
 
 **Steps:**
-
-1. Right-click on the `run_local.ps1` file.
-2. Select **"Run with PowerShell"**.
+1. Right-click on `run_local.ps1`
+2. Select **"Run with PowerShell"**
 
 The script will automatically:
+- Create a virtual environment
+- Install required packages (`fastapi`, `uvicorn`, `requests`, `PyQt5`, `pydantic`)
+- Start Ollama (restarts with correct parallel config)
+- Start the FastAPI backend on port 5000
+- Launch the desktop pet frontend (`pet.py`)
 
-- Create a virtual environment.
-- Install necessary packages.
-- Start the backend API server.
-- Launch the frontend desktop pet application.
+> **Note:** If you add a new Ollama model, update `$env:OLLAMA_MAX_LOADED_MODELS` in `run_local.ps1` accordingly (currently `2`).
+
+---
 
 ### Health Check & Testing
 
-If you are a developer, you can use the following scripts for debugging:
+For developers:
 
-- **Health Check**: Run `scripts/healthcheck.py` to verify Ollama service status.
-- **Unit Tests**: Run `python -m unittest discover -v` in the root directory to test API functionality.
+- **Health Check**: `python healthcheck.py` — verifies Ollama and API status
+- **Unit Tests**: `python -m unittest discover -v` — runs API functional tests from the root directory
 
 ---
 
 <a name="chinese"></a>
 ## 🇹🇼 中文說明
 
-這是一個基於 [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet) 重構的乾淨版本，使用 **PyQt5** 作為前端 GUI，實現摸頭互動、雙語生成與 API 服務。專案提供完整的後端 API、前端桌寵、健康檢查腳本和自動化測試，方便在 Windows 本機快速搭建和測試。
+這是一個基於 [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet) 重構的乾淨版本，使用 **PyQt5** 作為前端 GUI，實現摸頭互動、雙語生成與 API 服務。
 
 ### ⚠️ 開發中版本 (Prototype)
 
 本程式目前處於 **早期開發階段 (MVP)**。
-
-- 可能會遇到 Bug、未預期的崩潰或無用的殘留檔案。
-- 功能與 API 結構可能隨時變動。
-- 歡迎反饋問題，但請以「測試版」的心態使用。
-
-### 🤖 模型架構
-
-本專案整合了多模態 AI 能力，以實現更豐富的互動：
-
-- **思考與對話模型**：目前使用 **Inaba (基於 Qwen 3.5 4B)** (Ollama)
-- **視覺識別模型**：使用**Qwen 3 VL 4B**，讓 Inaba 能夠「看見」螢幕上的內容並做出反應。
-- **語音合成**：使用自定義的 TTS 方案 (不再依賴 VoiceVox)。
-
-### 功能概述
-
-- **/qwen3**：代理本地 Ollama 的聊天接口，返回聊天回應和歷史。
-- **/reply_bi**：生成中日雙語回覆。
-- **/tts**：語音合成服務。
-- **/say**：根據文字生成語音並返回字幕，內部串接 `/qwen3` 和 `/tts`。
-- **/pat**：模擬摸頭互動，調用 `/say` 產生一句短句並返回語音與字幕。
-- **前端桌寵**：`pet.py` 使用 PyQt5 顯示角色立繪，監聽頭部區域滑鼠操作或雙擊以觸發 `/pat`，播放語音並顯示字幕。
-
-### 📥 模型設置 (必要步驟)
-
-由於模型檔案較大 (~4.7GB)，未包含在主程式下載中。你需要手動下載並匯入 Ollama。
-
-1. **安裝 Ollama**：請至 [ollama.com](https://ollama.com/) 下載並安裝。
-2. **下載模型檔案**：
-   - 從 Hugging Face 下載 `meguru_q4_k_m.gguf` 和 `Modelfile`：
-   - https://huggingface.co/wallouo/Inaba/tree/main
-3. **匯入 Ollama**：
-   在下載檔案的資料夾開啟 PowerShell，執行以下指令：
-   ```bash
-   ollama create meguru -f Modelfile
-   ```
-4. **驗證**：執行 `ollama list` 確認列表中有 `meguru` 模型。
-
-### 🎤 VITS 語音合成設置 (選配)
-
-本專案使用 **VITS** 進行動態語音合成。如果你希望 Inaba 用巡（Meguru）的聲音說話，請依照以下步驟操作：
-
-#### 1. 下載預訓練模型
-
-- **模型檔案**：`G_trilingual.pth`
-- **配置檔案**：`uma_trilingual.json`（重命名為 `config.json`）
-- **來源**：[Plachta/VITS-Umamusume-voice-synthesizer](https://huggingface.co/spaces/Plachta/VITS-Umamusume-voice-synthesizer/tree/main/pretrained_models)
-
-模型直接連結：
-```
-https://huggingface.co/spaces/Plachta/VITS-Umamusume-voice-synthesizer/blob/main/pretrained_models/G_trilingual.pth
-```
-
-#### 2. 安裝 vits-simple-api
-
-複製並設定 VITS API 伺服器：
-
-```bash
-git clone https://github.com/Artrajz/vits-simple-api.git
-cd vits-simple-api
-pip install -r requirements.txt
-```
-
-#### 3. 配置模型
-
-- 將 `G_trilingual.pth` 放入 `vits-simple-api` 的 `Model` 資料夾
-- 將 `uma_trilingual.json` 重命名為 `config.json` 並放在同一資料夾
-- 在你的 API 配置中，設定 **Speaker ID = 88** 來使用 Meguru（Sanoba Witch）的聲音
-
-#### 4. 啟動 VITS API 伺服器
-
-```bash
-python app.py
-```
-
-伺服器預設會在 `http://localhost:23456` 啟動。
-
-#### 5. 測試語音
-
-你可以在以下網址測試語音合成：
-```
-http://localhost:23456/voice/vits?text=天気がいいから、散歩しましょう～&id=88&lang=ja
-```
-
-### 安裝與準備
-
-1. 建議使用 **Python 3.9.x** 或更高版本。
-2. 請確保 **Ollama** 正在運行，並且已建立 `meguru` 模型（見上一步驟）。
-
-### 🚀 啟動方式
-
-本專案提供了一鍵啟動腳本，會自動處理依賴安裝與環境設置。
-
-**步驟：**
-
-1. 在 `run_local.ps1` 檔案上點擊 **右鍵**。
-2. 選擇 **「使用 PowerShell 執行」 (Run with PowerShell)**。
-
-腳本將會自動：
-
-- 建立虛擬環境
-- 安裝必要套件
-- 啟動後端 API 伺服器
-- 啟動前端桌寵程式
-
-### 健康檢查與測試
-
-如果你是開發者，可以使用以下腳本進行除錯：
-
-- **健康檢查**：運行 `scripts/healthcheck.py` 以檢查 Ollama 服務狀態。
-- **單元測試**：在根目錄運行 `python -m unittest discover -v` 進行 API 功能測試。
+*   可能會遇到 Bug、未預期的崩潰或無用的殘留檔案。
+*   功能與 API 結構可能隨時變動。
+*   歡迎反饋問題，但請以「測試版」的心態使用。
 
 ---
 
-## Disclaimer / 版權聲明
+### 🤖 模型架構
 
-This project is a fan-made application. The character "Inaba Meguru" and related visual assets are the intellectual property of Yuzusoft. The code is licensed under the MIT License, but the image assets (assets/character.jpg etc.) are for personal/fan use only and are NOT covered by the MIT License.
+| 角色 | 模型 | 狀態 |
+|---|---|---|
+| 對話與角色扮演 | **meguru**（Qwen 3 8B 微調版，透過 Ollama） | ✅ 運作中 |
+| 視覺識別 | **qwen3-vl:4b-instruct**（透過 Ollama） | ✅ 運作中 |
+| 翻譯（中 / 英 / 日） | **qwen3.5 2b**（透過 Ollama，由 `translate.py` 使用） | ✅ 運作中 |
+| 語音合成 | VITS（vits-simple-api）+ Mock 保底 | ✅ 運作中 |
 
-本項目為粉絲同人作品。角色「因幡巡」及相關美術資源版權歸 Yuzusoft (柚子社) 所有。代碼部分採用 MIT 協議，但美術資源僅供個人/粉絲學習使用，嚴禁商用。
+> **升級說明 (2026-05-02)：** 對話模型已從 InabaV1（Qwen 2.5 7B）升級至 **meguru**（Qwen 3 8B 微調版）。視覺識別功能已透過 `VisionConnector` 模組正式整合 `qwen3-vl:4b-instruct`。
+
+---
+
+### ✨ 本次更新（fix branch — 2026-05-02）
+
+#### 🐛 錯誤修復
+- **`api.py`**：修復 `from translation import translate` 的錯誤 import（正確應為 `from translate import translate`），此問題導致 FastAPI 無法啟動（連接埠 5000 顯示 `FAILED`）
+- **`vision/vision_connector.py`**：移除因合併錯誤造成的大量重複程式碼（`__init__`、`is_qwen_vl()`、`image_to_base64()`、`analyze_image()` 參數均被重複貼上），修復啟動時的 `SyntaxError: invalid syntax`
+- **`vision/vision_connector.py`**：清除未使用的 `import cv2` 及方法內部的冗餘 `import io`
+
+#### 🔨 重構模組
+
+- **`logic/memory.py`** — 執行緒安全重寫：
+  - 修復潛在 deadlock：`_sanitize()` 現在在 `_file_lock` 外執行
+  - 新增 `last_error` property，方便外部檢查錯誤狀態
+  - 以背景執行緒（`daemon=True`）非同步存檔
+
+- **`logic/calendar_event.py`** — 節日系統擴充：
+  - 全部改為日語（めぐる口吻）
+  - 節日數量從 3 個擴充至 **12 個日本節日**（正月、節分、バレンタイン、ひな祭り、ホワイトデー、エイプリルフール、こどもの日、七夕、ハロウィン、クリスマスイブ、クリスマス、大晦日）
+  - 回傳 `HolidayEvent` TypedDict，包含 `name`、`hint`、`emotion` 三個欄位
+  - 新增 `get_holiday_hint()` 便利函式，可直接注入 prompt
+
+- **`logic/time_greeter.py`** — 完全重寫：
+  - 問候語全部改為日語（めぐる語氣）
+  - 時段從 4 段擴充至 **7 段**（清晨 / 上午 / 午間 / 下午 / 傍晚 / 夜間 / 深夜）
+  - 回傳 `TimeGreeting` TypedDict，包含 `text` 和 `emotion` 欄位
+
+---
+
+### 功能概述
+
+*   **/chat_process**：主要對話端點，會自動將時段問候、節日提示、使用者名稱及上次話題注入 Ollama prompt。
+*   **/pat**：摸頭互動，觸發帶有語音的情境回應。
+*   **/greet**：回傳結合時段與節日的問候語，附帶 TTS。
+*   **/tts**：語音合成服務（預定義音頻 → VITS → Mock 保底）。
+*   **/say**：根據文字生成語音並返回字幕。
+*   **/reply_bi**：生成中日雙語回覆。
+*   **/memory GET**：讀取目前記憶狀態（name、last_topic、mood）。
+*   **/memory POST**：更新記憶欄位。
+*   **translate.py**：多語翻譯輔助模組，負責處理中文 / 英文 / 日文的轉換與支援。
+*   **前端桌寵**：`pet.py` 使用 PyQt5 顯示角色立繪，監聽滑鼠操作並播放語音與字幕。
+
+---
+
+### 📥 模型設置（必要步驟）
+
+需要安裝兩個模型，啟動前請先完成。
+
+#### 1. 對話模型 — `meguru`
+
+由於模型檔案較大（約 4.7 GB），未包含在 repo 中，請手動下載並匯入：
+
+1. **安裝 Ollama**：[ollama.com](https://ollama.com)
+2. **從 Hugging Face 下載模型檔案**：
+   [https://huggingface.co/wallouo/InabaV1/tree/main](https://huggingface.co/wallouo/InabaV1/tree/main)
+   — 下載 `meguru_q4_k_m.gguf` 和 `Modelfile`
+3. **匯入 Ollama** — 在下載資料夾開啟 PowerShell：
+   ```powershell
+   ollama create meguru -f Modelfile
+   ```
+4. **驗證**：執行 `ollama list`，確認列表中有 `meguru`
+
+#### 2. 視覺模型 — `qwen3-vl:4b-instruct`
+
+```powershell
+ollama pull qwen3-vl:4b-instruct
+```
+
+#### 3. 翻譯模型 — `qwen3.5 2b`
+
+本專案現在新增 `translate.py` 翻譯模組，用於支援中文 / 英文 / 日文處理。
+
+```powershell
+ollama pull qwen3.5:2b
+```
+執行 `ollama list` 確認已下載完成。
+
+---
+
+### 安裝與準備
+
+1. 建議使用 **Python 3.9+**
+2. **Ollama** 需已啟動，且 `meguru` 與 `qwen3-vl:4b-instruct` 兩個模型均已安裝（見上方步驟）
+3. **VITS**（可選）：[vits-simple-api](https://github.com/Artrajz/vits-simple-api)——若未啟動，TTS 會自動退回 Mock 音頻
+
+---
+
+### 🚀 啟動方式
+
+本專案提供一鍵啟動腳本，自動處理依賴安裝與環境設置。
+
+**步驟：**
+1. 在 `run_local.ps1` 上點擊右鍵
+2. 選擇「**使用 PowerShell 執行**」
+
+腳本將自動：
+- 建立虛擬環境
+- 安裝必要套件（`fastapi`、`uvicorn`、`requests`、`PyQt5`、`pydantic`）
+- 啟動 Ollama（以正確的並行設定重啟）
+- 在連接埠 5000 啟動 FastAPI 後端
+- 啟動前端桌寵程式（`pet.py`）
+
+> **注意：** 若新增 Ollama 模型，請同步更新 `run_local.ps1` 中的 `$env:OLLAMA_MAX_LOADED_MODELS`（目前設為 `2`）。
+
+---
+
+### 健康檢查與測試
+
+開發者可使用以下腳本進行除錯：
+
+- **健康檢查**：`python healthcheck.py` — 檢查 Ollama 與 API 服務狀態
+- **單元測試**：在根目錄執行 `python -m unittest discover -v`
