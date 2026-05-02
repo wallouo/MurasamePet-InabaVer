@@ -2,8 +2,8 @@
 param()
 
 # ===== Ollama Parallelism Config =====
-$env:OLLAMA_NUM_PARALLEL = 2
-$env:OLLAMA_MAX_LOADED_MODELS = 2
+$env:OLLAMA_NUM_PARALLEL = 3
+$env:OLLAMA_MAX_LOADED_MODELS = 3
 $env:OLLAMA_KEEP_ALIVE = "5m"
 
 # ===== 配置區 =====

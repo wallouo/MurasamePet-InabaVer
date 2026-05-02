@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from translation import translate
+from translate import translate   # ← 把 translation 改成 translate
 from logic.memory import MemoryManager
 from logic.calendar_event import get_holiday_hint
 from logic.time_greeter import get_time_greeting
