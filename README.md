@@ -22,12 +22,12 @@ This software is currently in the **Early Access / MVP** stage.
 
 | Role | Model | Status |
 |---|---|---|
-| Chat & Roleplay | **meguru** (Qwen 3 8B fine-tune, via Ollama) | ✅ Active |
+| Chat & Roleplay | **meguru** (Qwen 3.5 4B fine-tune, via Ollama) | ✅ Active |
 | Visual Recognition | **qwen3-vl:4b-instruct** (via Ollama) | ✅ Active |
 | Translation (ZH/EN/JA) | **qwen3.5 2b** (via Ollama, used by `translate.py`) | ✅ Active |
 | Speech Synthesis | VITS (vits-simple-api) + Mock fallback | ✅ Active |
 
-> **Upgrade note (2026-05-02):** The chat model has been migrated from InabaV1 (Qwen 2.5 7B) to **meguru** (Qwen 3 8B fine-tune). Visual recognition with `qwen3-vl:4b-instruct` is now live via the `VisionConnector` module.
+> **Upgrade note (2026-05-02):** The chat model has been migrated from InabaV1 (Qwen 2.5 7B) to **meguru** (Qwen 3.5 4B fine-tune). Visual recognition with `qwen3-vl:4b-instruct` is now live via the `VisionConnector` module.
 
 ---
 
@@ -78,7 +78,7 @@ Two models are required. Install both before running.
 
 #### 1. Chat model — `meguru`
 
-Because the model file is large (~4.7 GB), it is not included in the repo. Download and import manually:
+Because the model file is large, it is not included in the repo. Download and import manually:
 
 1. **Install Ollama**: [ollama.com](https://ollama.com)
 2. **Download model files** from Hugging Face:
@@ -130,7 +130,7 @@ The script will automatically:
 - Start the FastAPI backend on port 5000
 - Launch the desktop pet frontend (`pet.py`)
 
-> **Note:** If you add a new Ollama model, update `$env:OLLAMA_MAX_LOADED_MODELS` in `run_local.ps1` accordingly (currently `2`).
+> **Note:** If you add a new Ollama model, update `$env:OLLAMA_MAX_LOADED_MODELS` in `run_local.ps1` accordingly (currently `3`).
 
 ---
 
@@ -161,12 +161,12 @@ For developers:
 
 | 角色 | 模型 | 狀態 |
 |---|---|---|
-| 對話與角色扮演 | **meguru**（Qwen 3 8B 微調版，透過 Ollama） | ✅ 運作中 |
+| 對話與角色扮演 | **meguru**（Qwen 3.5 4B 微調版，透過 Ollama） | ✅ 運作中 |
 | 視覺識別 | **qwen3-vl:4b-instruct**（透過 Ollama） | ✅ 運作中 |
 | 翻譯（中 / 英 / 日） | **qwen3.5 2b**（透過 Ollama，由 `translate.py` 使用） | ✅ 運作中 |
 | 語音合成 | VITS（vits-simple-api）+ Mock 保底 | ✅ 運作中 |
 
-> **升級說明 (2026-05-02)：** 對話模型已從 InabaV1（Qwen 2.5 7B）升級至 **meguru**（Qwen 3 8B 微調版）。視覺識別功能已透過 `VisionConnector` 模組正式整合 `qwen3-vl:4b-instruct`。
+> **升級說明 (2026-05-02)：** 對話模型已從 InabaV1（Qwen 2.5 7B）升級至 **meguru**（Qwen 3.5 4B 微調版）。視覺識別功能已透過 `VisionConnector` 模組正式整合 `qwen3-vl:4b-instruct`。
 
 ---
 
@@ -218,7 +218,7 @@ For developers:
 
 #### 1. 對話模型 — `meguru`
 
-由於模型檔案較大（約 4.7 GB），未包含在 repo 中，請手動下載並匯入：
+由於模型檔案較大，未包含在 repo 中，請手動下載並匯入：
 
 1. **安裝 Ollama**：[ollama.com](https://ollama.com)
 2. **從 Hugging Face 下載模型檔案**：
@@ -270,7 +270,7 @@ ollama pull qwen3.5:2b
 - 在連接埠 5000 啟動 FastAPI 後端
 - 啟動前端桌寵程式（`pet.py`）
 
-> **注意：** 若新增 Ollama 模型，請同步更新 `run_local.ps1` 中的 `$env:OLLAMA_MAX_LOADED_MODELS`（目前設為 `2`）。
+> **注意：** 若新增 Ollama 模型，請同步更新 `run_local.ps1` 中的 `$env:OLLAMA_MAX_LOADED_MODELS`（目前設為 `3`）。
 
 ---
 
