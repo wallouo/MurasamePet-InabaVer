@@ -1,4 +1,4 @@
-# Project Inaba (MurasamePet-Inaba-clean)
+# Project Inaba (MurasamePet-Inaba-clean) v1.0.0
 
 [English](#english) | [中文說明](#chinese)
 
@@ -9,12 +9,22 @@
 
 This is a clean, refactored version based on [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet), featuring a **PyQt5** frontend GUI. It implements head-pat interactions, bilingual text generation, and API services. The project provides a complete backend API, desktop pet frontend, health check scripts, and automated tests for quick setup and testing on Windows.
 
-### ⚠️ Development Status (Prototype)
+### ✅ Release Status (v1.0.0 — Stable)
 
-This software is currently in the **Early Access / MVP** stage.
-*   You may encounter bugs, unexpected crashes, or unused legacy files.
-*   Features and API structures are subject to change without notice.
-*   Feedback is welcome, but please use it with a "testing" mindset.
+Core functionality is complete and stable. The AI model, chat pipeline, voice synthesis, and desktop frontend are all fully operational.
+
+*   UI polish (window resizing, scaling) is ongoing and will be addressed in future minor releases.
+*   Feedback and bug reports are welcome via GitHub Issues.
+
+---
+
+### 🗺️ UI Roadmap (Upcoming)
+
+| Feature | Status |
+|---|---|
+| Window resize / scale support | 🔧 In progress |
+| Dynamic sprite scaling | 📋 Planned |
+| Settings panel | 📋 Planned |
 
 ---
 
@@ -148,12 +158,22 @@ For developers:
 
 這是一個基於 [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet) 重構的乾淨版本，使用 **PyQt5** 作為前端 GUI，實現摸頭互動、雙語生成與 API 服務。
 
-### ⚠️ 開發中版本 (Prototype)
+### ✅ 發布狀態（v1.0.0 — 正式版）
 
-本程式目前處於 **早期開發階段 (MVP)**。
-*   可能會遇到 Bug、未預期的崩潰或無用的殘留檔案。
-*   功能與 API 結構可能隨時變動。
-*   歡迎反饋問題，但請以「測試版」的心態使用。
+核心功能已完整穩定。AI 模型、對話流程、語音合成與桌寵前端均正常運作。
+
+*   視窗縮放等 UI 細節正在持續打磨，將於後續小版本發布。
+*   歡迎透過 GitHub Issues 回報問題或提供建議。
+
+---
+
+### 🗺️ UI 開發路線圖
+
+| 功能 | 狀態 |
+|---|---|
+| 視窗縮放支援 | 🔧 開發中 |
+| 角色立繪動態縮放 | 📋 計畫中 |
+| 設定面板 | 📋 計畫中 |
 
 ---
 
