@@ -1,171 +1,197 @@
-# Project Inaba (MurasamePet-Inaba-clean) v1.0.0
+<div align="center">
 
-[English](#english) | [中文說明](#chinese)
+# 🐾 InabaPet
+
+**A desktop AI companion powered by local LLMs — chat, vision, voice, and head-pats included.**
+
+[![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat-square)](https://github.com/wallouo/InabaPet/releases)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen?style=flat-square)](#)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![PyQt5](https://img.shields.io/badge/PyQt5-GUI-41CD52?style=flat-square&logo=qt&logoColor=white)](https://riverbankcomputing.com/software/pyqt/)
+[![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-black?style=flat-square&logo=ollama&logoColor=white)](https://ollama.com)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](#)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](#)
+
+[English](#-english) · [中文說明](#-中文說明)
+
+</div>
 
 ---
 
-<a name="english"></a>
 ## 🇬🇧 English
 
-This is a clean, refactored version based on [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet), featuring a **PyQt5** frontend GUI. It implements head-pat interactions, bilingual text generation, and API services. The project provides a complete backend API, desktop pet frontend, health check scripts, and automated tests for quick setup and testing on Windows.
+A clean, refactored fork of [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet) featuring a **PyQt5** desktop frontend, local LLM chat via Ollama, vision recognition, multilingual TTS, and a fully documented FastAPI backend — all running on-device with no cloud dependency.
 
-### ✅ Release Status (v1.0.0 — Stable)
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Frontend** | PyQt5 | Desktop pet GUI, sprite rendering, mouse interaction |
+| **Backend API** | FastAPI + Uvicorn | REST endpoints, prompt orchestration |
+| **Chat Model** | `meguru` (Qwen 3.5 4B fine-tune) | Roleplay, conversation, memory injection |
+| **Vision Model** | `qwen3-vl:4b-instruct` | Image analysis via `VisionConnector` |
+| **Translation** | `qwen3.5:2b` | ZH ↔ EN ↔ JA via `translate.py` |
+| **Speech Synthesis** | VITS (`vits-simple-api`) + Mock fallback | TTS audio generation |
+| **Runtime** | Ollama | Local model serving |
+| **Scripting** | PowerShell (`run_local.ps1`) | One-click environment setup & launch |
+
+---
+
+## 🤖 AI Models
+
+| Role | Model | Status |
+|---|---|---|
+| Chat & Roleplay | **meguru** — Qwen 3.5 4B fine-tune (Ollama) | ✅ Active |
+| Visual Recognition | **qwen3-vl:4b-instruct** (Ollama) | ✅ Active |
+| Translation (ZH/EN/JA) | **qwen3.5:2b** (Ollama) | ✅ Active |
+| Speech Synthesis | VITS (`vits-simple-api`) + Mock fallback | ✅ Active |
+
+> **v1.0.0 note:** Chat model upgraded from InabaV1 (Qwen 2.5 7B) → **meguru** (Qwen 3.5 4B fine-tune). Visual recognition via `VisionConnector` is now live.
+
+---
+
+## ✅ Release Status — v1.0.0 (Stable)
 
 Core functionality is complete and stable. The AI model, chat pipeline, voice synthesis, and desktop frontend are all fully operational.
 
-*   UI polish (window resizing, scaling) is ongoing and will be addressed in future minor releases.
-*   Feedback and bug reports are welcome via GitHub Issues.
+- UI polish (window resizing, scaling) is ongoing and tracked in the roadmap below.
+- Feedback and bug reports are welcome via [GitHub Issues](https://github.com/wallouo/InabaPet/issues).
 
----
-
-### 🗺️ UI Roadmap (Upcoming)
+### 🗺️ UI Roadmap
 
 | Feature | Status |
 |---|---|
-| Window resize / scale support | 🔧 In progress |
+| Window resize / scale support | 🔧 In Progress |
 | Dynamic sprite scaling | 📋 Planned |
 | Settings panel | 📋 Planned |
 
 ---
 
-### 🤖 AI Models
+## 🚀 Quick Start
 
-| Role | Model | Status |
-|---|---|---|
-| Chat & Roleplay | **meguru** (Qwen 3.5 4B fine-tune, via Ollama) | ✅ Active |
-| Visual Recognition | **qwen3-vl:4b-instruct** (via Ollama) | ✅ Active |
-| Translation (ZH/EN/JA) | **qwen3.5 2b** (via Ollama, used by `translate.py`) | ✅ Active |
-| Speech Synthesis | VITS (vits-simple-api) + Mock fallback | ✅ Active |
+### Prerequisites
 
-> **Upgrade note (2026-05-02):** The chat model has been migrated from InabaV1 (Qwen 2.5 7B) to **meguru** (Qwen 3.5 4B fine-tune). Visual recognition with `qwen3-vl:4b-instruct` is now live via the `VisionConnector` module.
+- **Python 3.9+**
+- **[Ollama](https://ollama.com)** installed and running
+- **VITS** *(optional)* — [vits-simple-api](https://github.com/Artrajz/vits-simple-api); falls back to mock audio if unavailable
 
----
+### 1 — Install Models
 
-### ✨ What's New (fix branch — 2026-05-02)
+#### Chat model — `meguru`
 
-#### 🐛 Bug Fixes
-- **`api.py`**: Fixed broken import `from translation import translate` → corrected to `from translate import translate` (caused FastAPI startup failure `FAILED` on port 5000)
-- **`vision/vision_connector.py`**: Removed duplicate code blocks (entire `__init__`, `is_qwen_vl()`, `image_to_base64()`, `analyze_image()` params were duplicated due to a bad merge), fixing `SyntaxError: invalid syntax` on startup
-- **`vision/vision_connector.py`**: Removed unused `import cv2` and redundant `import io` inside method body
+The model file is not bundled in the repo. Download and import manually:
 
-#### 🔨 Refactored Modules
-- **`logic/memory.py`** — Thread-safe rewrite:
-  - Fixed potential deadlock: `_sanitize()` now runs outside `_file_lock`
-  - Added `last_error` property for external error inspection
-  - Background save via `threading.Thread(daemon=True)`
+```powershell
+# 1. Install Ollama from https://ollama.com
+# 2. Download meguru_q4_k_m.gguf + Modelfile from HuggingFace:
+#    https://huggingface.co/wallouo/InabaV1/tree/main
+# 3. Import into Ollama (run in the download folder):
+ollama create meguru -f Modelfile
+# 4. Verify
+ollama list
+```
 
-- **`logic/calendar_event.py`** — Expanded holiday system:
-  - All content converted to Japanese (めぐる speech style)
-  - Expanded from 3 to **12 Japanese holidays** (正月, 節分, バレンタイン, ひな祭り, ホワイトデー, エイプリルフール, こどもの日, 七夕, ハロウィン, クリスマスイブ, クリスマス, 大晦日)
-  - Now returns `HolidayEvent` TypedDict with `name`, `hint`, and `emotion` fields
-  - Added `get_holiday_hint()` convenience function for prompt injection
-
-- **`logic/time_greeter.py`** — Full rewrite:
-  - All greetings converted to Japanese (めぐる tone)
-  - Time segments expanded from 4 → **7 segments** (early morning / morning / noon / afternoon / evening / night / late night)
-  - Now returns `TimeGreeting` TypedDict with `text` and `emotion` fields
-
----
-
-### Features Overview
-
-*   **/chat_process**: Main chat endpoint. Injects time-of-day greeting, holiday hint, user name, and last topic into the Ollama prompt automatically.
-*   **/pat**: Head-pat interaction, triggers a contextual response with voice.
-*   **/greet**: Returns a time + holiday aware greeting with TTS.
-*   **/tts**: Text-to-Speech synthesis (predefined audio → VITS → mock fallback).
-*   **/say**: Generates speech from text, internally chains chat and TTS.
-*   **/reply_bi**: Generates bilingual (Chinese/Japanese) responses.
-*   **/memory GET**: Read current memory state (name, last_topic, mood).
-*   **/memory POST**: Update memory fields.
-*   **translate.py**: Translation helper module for multilingual support, used to handle Chinese / English / Japanese conversion before or after model responses.
-*   **Desktop Pet Frontend**: `pet.py` uses PyQt5 to display the character, listens for mouse interactions, and plays voice/subtitles on trigger.
-
----
-
-### 📥 Model Setup (Required)
-
-Two models are required. Install both before running.
-
-#### 1. Chat model — `meguru`
-
-Because the model file is large, it is not included in the repo. Download and import manually:
-
-1. **Install Ollama**: [ollama.com](https://ollama.com)
-2. **Download model files** from Hugging Face:
-   [https://huggingface.co/wallouo/InabaV1/tree/main](https://huggingface.co/wallouo/InabaV1/tree/main)
-   — download `meguru_q4_k_m.gguf` and `Modelfile`
-3. **Import to Ollama** — open PowerShell in the download folder:
-   ```powershell
-   ollama create meguru -f Modelfile
-   ```
-4. **Verify**: `ollama list` should show `meguru`
-
-#### 2. Vision model — `qwen3-vl:4b-instruct`
+#### Vision model
 
 ```powershell
 ollama pull qwen3-vl:4b-instruct
 ```
 
-Verify with `ollama list`.
-
-#### 3. Translation model — `qwen3.5 2b`
-
-This project now includes a translation layer via `translate.py`, used for multilingual support (Chinese / English / Japanese).
+#### Translation model
 
 ```powershell
 ollama pull qwen3.5:2b
 ```
----
 
-### Installation & Prerequisites
+### 2 — Launch
 
-1. **Python 3.9+** recommended
-2. **Ollama** running with both `meguru` and `qwen3-vl:4b-instruct` loaded (see above)
-3. **VITS** (optional): [vits-simple-api](https://github.com/Artrajz/vits-simple-api) — if not running, TTS falls back to mock audio automatically
+This project includes a one-click startup script that handles everything automatically.
 
----
-
-### 🚀 How to Run
-
-This project includes a one-click startup script that handles dependency installation and environment setup automatically.
-
-**Steps:**
-1. Right-click on `run_local.ps1`
+1. Right-click `run_local.ps1`
 2. Select **"Run with PowerShell"**
 
-The script will automatically:
-- Create a virtual environment
-- Install required packages (`fastapi`, `uvicorn`, `requests`, `PyQt5`, `pydantic`)
-- Start Ollama (restarts with correct parallel config)
-- Start the FastAPI backend on port 5000
+The script will:
+- Create and activate a virtual environment
+- Install dependencies (`fastapi`, `uvicorn`, `requests`, `PyQt5`, `pydantic`)
+- Start Ollama with the correct parallel model config
+- Start the FastAPI backend on **port 5000**
 - Launch the desktop pet frontend (`pet.py`)
 
-> **Note:** If you add a new Ollama model, update `$env:OLLAMA_MAX_LOADED_MODELS` in `run_local.ps1` accordingly (currently `3`).
+> **Note:** If you add more Ollama models, update `$env:OLLAMA_MAX_LOADED_MODELS` in `run_local.ps1` (currently set to `3`).
 
 ---
 
-### Health Check & Testing
+## 🔌 API Endpoints
 
-For developers:
-
-- **Health Check**: `python healthcheck.py` — verifies Ollama and API status
-- **Unit Tests**: `python -m unittest discover -v` — runs API functional tests from the root directory
+| Endpoint | Method | Description |
+|---|---|---|
+| `/chat_process` | POST | Main chat — auto-injects time greeting, holiday hint, user name & last topic |
+| `/pat` | POST | Head-pat interaction with contextual voice response |
+| `/greet` | GET | Time + holiday-aware greeting with TTS |
+| `/tts` | POST | Text-to-Speech (predefined → VITS → mock fallback) |
+| `/say` | POST | Generate speech from text (chains chat + TTS) |
+| `/reply_bi` | POST | Bilingual (Chinese/Japanese) response generation |
+| `/memory` | GET | Read memory state (`name`, `last_topic`, `mood`) |
+| `/memory` | POST | Update memory fields |
 
 ---
 
-<a name="chinese"></a>
+## 🧪 Dev Tools
+
+```powershell
+# Health check — verifies Ollama and API status
+python healthcheck.py
+
+# Unit tests — run from project root
+python -m unittest discover -v
+```
+
+---
+
+## ✨ Changelog (fix branch — 2026-05-02)
+
+<details>
+<summary>🐛 Bug Fixes</summary>
+
+- **`api.py`** — Fixed broken import `from translation import translate` → `from translate import translate` (caused FastAPI startup failure on port 5000)
+- **`vision/vision_connector.py`** — Removed duplicated code blocks (`__init__`, `is_qwen_vl()`, `image_to_base64()`, `analyze_image()`) introduced by a bad merge, fixing `SyntaxError` on startup
+- **`vision/vision_connector.py`** — Removed unused `import cv2` and redundant `import io` inside method body
+
+</details>
+
+<details>
+<summary>🔨 Refactored Modules</summary>
+
+**`logic/memory.py`** — Thread-safe rewrite
+- `_sanitize()` now runs outside `_file_lock` to prevent potential deadlock
+- Added `last_error` property for external error inspection
+- Background save via `threading.Thread(daemon=True)`
+
+**`logic/calendar_event.py`** — Expanded holiday system
+- All content converted to Japanese (めぐる speech style)
+- Expanded from 3 → **12 Japanese holidays** (正月, 節分, バレンタイン, ひな祭り, ホワイトデー, エイプリルフール, こどもの日, 七夕, ハロウィン, クリスマスイブ, クリスマス, 大晦日)
+- Returns `HolidayEvent` TypedDict with `name`, `hint`, and `emotion` fields
+- Added `get_holiday_hint()` for direct prompt injection
+
+**`logic/time_greeter.py`** — Full rewrite
+- All greetings converted to Japanese (めぐる tone)
+- Time segments expanded 4 → **7** (early morning / morning / noon / afternoon / evening / night / late night)
+- Returns `TimeGreeting` TypedDict with `text` and `emotion` fields
+
+</details>
+
+---
+
 ## 🇹🇼 中文說明
 
-這是一個基於 [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet) 重構的乾淨版本，使用 **PyQt5** 作為前端 GUI，實現摸頭互動、雙語生成與 API 服務。
+這是一個基於 [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet) 重構的乾淨版本，使用 **PyQt5** 作為前端 GUI，結合本地 Ollama 模型實現對話、視覺識別、語音合成與桌寵互動，完全離線運行。
 
 ### ✅ 發布狀態（v1.0.0 — 正式版）
 
-核心功能已完整穩定。AI 模型、對話流程、語音合成與桌寵前端均正常運作。
-
-*   視窗縮放等 UI 細節正在持續打磨，將於後續小版本發布。
-*   歡迎透過 GitHub Issues 回報問題或提供建議。
-
----
+核心功能已完整穩定。AI 模型、對話流程、語音合成與桌寵前端均正常運作。視窗縮放等 UI 細節持續優化中，歡迎透過 [GitHub Issues](https://github.com/wallouo/InabaPet/issues) 回報問題。
 
 ### 🗺️ UI 開發路線圖
 
@@ -183,120 +209,85 @@ For developers:
 |---|---|---|
 | 對話與角色扮演 | **meguru**（Qwen 3.5 4B 微調版，透過 Ollama） | ✅ 運作中 |
 | 視覺識別 | **qwen3-vl:4b-instruct**（透過 Ollama） | ✅ 運作中 |
-| 翻譯（中 / 英 / 日） | **qwen3.5 2b**（透過 Ollama，由 `translate.py` 使用） | ✅ 運作中 |
+| 翻譯（中 / 英 / 日） | **qwen3.5:2b**（透過 Ollama） | ✅ 運作中 |
 | 語音合成 | VITS（vits-simple-api）+ Mock 保底 | ✅ 運作中 |
 
-> **升級說明 (2026-05-02)：** 對話模型已從 InabaV1（Qwen 2.5 7B）升級至 **meguru**（Qwen 3.5 4B 微調版）。視覺識別功能已透過 `VisionConnector` 模組正式整合 `qwen3-vl:4b-instruct`。
+> **升級說明 (2026-05-02)：** 對話模型已從 InabaV1（Qwen 2.5 7B）升級至 **meguru**（Qwen 3.5 4B 微調版）。視覺識別已透過 `VisionConnector` 正式整合。
+
+---
+
+### 🚀 快速啟動
+
+#### 模型安裝
+
+```powershell
+# 對話模型（需手動從 HuggingFace 下載後匯入）
+# https://huggingface.co/wallouo/InabaV1/tree/main
+ollama create meguru -f Modelfile
+
+# 視覺模型
+ollama pull qwen3-vl:4b-instruct
+
+# 翻譯模型
+ollama pull qwen3.5:2b
+```
+
+#### 啟動方式
+
+1. 在 `run_local.ps1` 上點擊右鍵
+2. 選擇「**使用 PowerShell 執行**」
+
+腳本將自動建立虛擬環境、安裝套件、啟動 Ollama 與 FastAPI 後端（連接埠 5000），並開啟桌寵前端。
+
+> **注意：** 若新增模型，請更新 `run_local.ps1` 中的 `$env:OLLAMA_MAX_LOADED_MODELS`（目前為 `3`）。
+
+---
+
+### 🔌 API 端點
+
+| 端點 | 方法 | 說明 |
+|---|---|---|
+| `/chat_process` | POST | 主對話端點，自動注入時段問候、節日提示、使用者名稱與上次話題 |
+| `/pat` | POST | 摸頭互動，觸發帶語音的情境回應 |
+| `/greet` | GET | 結合時段與節日的問候語（附 TTS） |
+| `/tts` | POST | 語音合成（預定義 → VITS → Mock） |
+| `/say` | POST | 文字轉語音（鏈結對話與 TTS） |
+| `/reply_bi` | POST | 中日雙語回覆生成 |
+| `/memory` | GET | 讀取記憶狀態（name、last_topic、mood） |
+| `/memory` | POST | 更新記憶欄位 |
+
+---
+
+### 🧪 開發工具
+
+```powershell
+# 健康檢查
+python healthcheck.py
+
+# 單元測試
+python -m unittest discover -v
+```
 
 ---
 
 ### ✨ 本次更新（fix branch — 2026-05-02）
 
-#### 🐛 錯誤修復
-- **`api.py`**：修復 `from translation import translate` 的錯誤 import（正確應為 `from translate import translate`），此問題導致 FastAPI 無法啟動（連接埠 5000 顯示 `FAILED`）
-- **`vision/vision_connector.py`**：移除因合併錯誤造成的大量重複程式碼（`__init__`、`is_qwen_vl()`、`image_to_base64()`、`analyze_image()` 參數均被重複貼上），修復啟動時的 `SyntaxError: invalid syntax`
-- **`vision/vision_connector.py`**：清除未使用的 `import cv2` 及方法內部的冗餘 `import io`
+<details>
+<summary>🐛 錯誤修復</summary>
 
-#### 🔨 重構模組
+- **`api.py`**：修復錯誤 import，解決 FastAPI 無法在連接埠 5000 啟動的問題
+- **`vision/vision_connector.py`**：移除合併錯誤造成的重複程式碼，修復啟動時 `SyntaxError`
+- **`vision/vision_connector.py`**：清除未使用的 `import cv2` 與冗餘 `import io`
 
-- **`logic/memory.py`** — 執行緒安全重寫：
-  - 修復潛在 deadlock：`_sanitize()` 現在在 `_file_lock` 外執行
-  - 新增 `last_error` property，方便外部檢查錯誤狀態
-  - 以背景執行緒（`daemon=True`）非同步存檔
+</details>
 
-- **`logic/calendar_event.py`** — 節日系統擴充：
-  - 全部改為日語（めぐる口吻）
-  - 節日數量從 3 個擴充至 **12 個日本節日**（正月、節分、バレンタイン、ひな祭り、ホワイトデー、エイプリルフール、こどもの日、七夕、ハロウィン、クリスマスイブ、クリスマス、大晦日）
-  - 回傳 `HolidayEvent` TypedDict，包含 `name`、`hint`、`emotion` 三個欄位
-  - 新增 `get_holiday_hint()` 便利函式，可直接注入 prompt
+<details>
+<summary>🔨 重構模組</summary>
 
-- **`logic/time_greeter.py`** — 完全重寫：
-  - 問候語全部改為日語（めぐる語氣）
-  - 時段從 4 段擴充至 **7 段**（清晨 / 上午 / 午間 / 下午 / 傍晚 / 夜間 / 深夜）
-  - 回傳 `TimeGreeting` TypedDict，包含 `text` 和 `emotion` 欄位
+**`logic/memory.py`** — 執行緒安全重寫：`_sanitize()` 移至 `_file_lock` 外、新增 `last_error`、背景執行緒非同步存檔
 
----
+**`logic/calendar_event.py`** — 節日系統擴充：3 → 12 個日本節日，全部改為日語，回傳 `HolidayEvent` TypedDict
 
-### 功能概述
+**`logic/time_greeter.py`** — 完全重寫：時段 4 → 7 段，全日語問候語，回傳 `TimeGreeting` TypedDict
 
-*   **/chat_process**：主要對話端點，會自動將時段問候、節日提示、使用者名稱及上次話題注入 Ollama prompt。
-*   **/pat**：摸頭互動，觸發帶有語音的情境回應。
-*   **/greet**：回傳結合時段與節日的問候語，附帶 TTS。
-*   **/tts**：語音合成服務（預定義音頻 → VITS → Mock 保底）。
-*   **/say**：根據文字生成語音並返回字幕。
-*   **/reply_bi**：生成中日雙語回覆。
-*   **/memory GET**：讀取目前記憶狀態（name、last_topic、mood）。
-*   **/memory POST**：更新記憶欄位。
-*   **translate.py**：多語翻譯輔助模組，負責處理中文 / 英文 / 日文的轉換與支援。
-*   **前端桌寵**：`pet.py` 使用 PyQt5 顯示角色立繪，監聽滑鼠操作並播放語音與字幕。
-
----
-
-### 📥 模型設置（必要步驟）
-
-需要安裝兩個模型，啟動前請先完成。
-
-#### 1. 對話模型 — `meguru`
-
-由於模型檔案較大，未包含在 repo 中，請手動下載並匯入：
-
-1. **安裝 Ollama**：[ollama.com](https://ollama.com)
-2. **從 Hugging Face 下載模型檔案**：
-   [https://huggingface.co/wallouo/InabaV1/tree/main](https://huggingface.co/wallouo/InabaV1/tree/main)
-   — 下載 `meguru_q4_k_m.gguf` 和 `Modelfile`
-3. **匯入 Ollama** — 在下載資料夾開啟 PowerShell：
-   ```powershell
-   ollama create meguru -f Modelfile
-   ```
-4. **驗證**：執行 `ollama list`，確認列表中有 `meguru`
-
-#### 2. 視覺模型 — `qwen3-vl:4b-instruct`
-
-```powershell
-ollama pull qwen3-vl:4b-instruct
-```
-
-#### 3. 翻譯模型 — `qwen3.5 2b`
-
-本專案現在新增 `translate.py` 翻譯模組，用於支援中文 / 英文 / 日文處理。
-
-```powershell
-ollama pull qwen3.5:2b
-```
-執行 `ollama list` 確認已下載完成。
-
----
-
-### 安裝與準備
-
-1. 建議使用 **Python 3.9+**
-2. **Ollama** 需已啟動，且 `meguru` 與 `qwen3-vl:4b-instruct` 兩個模型均已安裝（見上方步驟）
-3. **VITS**（可選）：[vits-simple-api](https://github.com/Artrajz/vits-simple-api)——若未啟動，TTS 會自動退回 Mock 音頻
-
----
-
-### 🚀 啟動方式
-
-本專案提供一鍵啟動腳本，自動處理依賴安裝與環境設置。
-
-**步驟：**
-1. 在 `run_local.ps1` 上點擊右鍵
-2. 選擇「**使用 PowerShell 執行**」
-
-腳本將自動：
-- 建立虛擬環境
-- 安裝必要套件（`fastapi`、`uvicorn`、`requests`、`PyQt5`、`pydantic`）
-- 啟動 Ollama（以正確的並行設定重啟）
-- 在連接埠 5000 啟動 FastAPI 後端
-- 啟動前端桌寵程式（`pet.py`）
-
-> **注意：** 若新增 Ollama 模型，請同步更新 `run_local.ps1` 中的 `$env:OLLAMA_MAX_LOADED_MODELS`（目前設為 `3`）。
-
----
-
-### 健康檢查與測試
-
-開發者可使用以下腳本進行除錯：
-
-- **健康檢查**：`python healthcheck.py` — 檢查 Ollama 與 API 服務狀態
-- **單元測試**：在根目錄執行 `python -m unittest discover -v`
+</details>
