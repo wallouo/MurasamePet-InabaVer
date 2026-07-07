@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🐾 InabaPet
+# InabaPet
 
 **A desktop AI companion powered by local LLMs — chat, vision, voice, and head-pats included.**
 
@@ -13,19 +13,19 @@
 [![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](#)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](#)
 
-[English](#-english) · [中文說明](#-中文說明)
+[English](#english) · [中文說明](#中文說明)
 
 </div>
 
 ---
 
-## 🇬🇧 English
+## English
 
 A clean, refactored fork of [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet) featuring a **PyQt5** desktop frontend, local LLM chat via Ollama, vision recognition, multilingual TTS, and a fully documented FastAPI backend — all running on-device with no cloud dependency.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology | Purpose |
 |---|---|---|
@@ -40,37 +40,37 @@ A clean, refactored fork of [MurasamePet](https://github.com/LemonQu-GIT/Murasam
 
 ---
 
-## 🤖 AI Models
+## AI Models
 
 | Role | Model | Status |
 |---|---|---|
-| Chat & Roleplay | **meguru** — Qwen 3.5 4B fine-tune (Ollama) | ✅ Active |
-| Visual Recognition | **qwen3-vl:4b-instruct** (Ollama) | ✅ Active |
-| Translation (ZH/EN/JA) | **qwen3.5:2b** (Ollama) | ✅ Active |
-| Speech Synthesis | VITS (`vits-simple-api`) + Mock fallback | ✅ Active |
+| Chat & Roleplay | **meguru** — Qwen 3.5 4B fine-tune (Ollama) | Active |
+| Visual Recognition | **qwen3-vl:4b-instruct** (Ollama) | Active |
+| Translation (ZH/EN/JA) | **qwen3.5:2b** (Ollama) | Active |
+| Speech Synthesis | VITS (`vits-simple-api`) + Mock fallback | Active |
 
 > **v1.0.0 note:** Chat model upgraded from InabaV1 (Qwen 2.5 7B) → **meguru** (Qwen 3.5 4B fine-tune). Visual recognition via `VisionConnector` is now live.
 
 ---
 
-## ✅ Release Status — v1.0.0 (Stable)
+## Release Status — v1.0.0 (Stable)
 
 Core functionality is complete and stable. The AI model, chat pipeline, voice synthesis, and desktop frontend are all fully operational.
 
 - UI polish (window resizing, scaling) is ongoing and tracked in the roadmap below.
 - Feedback and bug reports are welcome via [GitHub Issues](https://github.com/wallouo/InabaPet/issues).
 
-### 🗺️ UI Roadmap
+### UI Roadmap
 
 | Feature | Status |
 |---|---|
-| Window resize / scale support | 🔧 In Progress |
-| Dynamic sprite scaling | 📋 Planned |
-| Settings panel | 📋 Planned |
+| Window resize / scale support | In Progress |
+| Dynamic sprite scaling | Planned |
+| Settings panel | Planned |
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -124,7 +124,7 @@ The script will:
 
 ---
 
-## 🔌 API Endpoints
+## API Endpoints
 
 | Endpoint | Method | Description |
 |---|---|---|
@@ -139,7 +139,7 @@ The script will:
 
 ---
 
-## 🧪 Dev Tools
+## Dev Tools
 
 ```powershell
 # Health check — verifies Ollama and API status
@@ -151,10 +151,10 @@ python -m unittest discover -v
 
 ---
 
-## ✨ Changelog (fix branch — 2026-05-02)
+## Changelog (fix branch — 2026-05-02)
 
 <details>
-<summary>🐛 Bug Fixes</summary>
+<summary>Bug Fixes</summary>
 
 - **`api.py`** — Fixed broken import `from translation import translate` → `from translate import translate` (caused FastAPI startup failure on port 5000)
 - **`vision/vision_connector.py`** — Removed duplicated code blocks (`__init__`, `is_qwen_vl()`, `image_to_base64()`, `analyze_image()`) introduced by a bad merge, fixing `SyntaxError` on startup
@@ -163,7 +163,7 @@ python -m unittest discover -v
 </details>
 
 <details>
-<summary>🔨 Refactored Modules</summary>
+<summary>Refactored Modules</summary>
 
 **`logic/memory.py`** — Thread-safe rewrite
 - `_sanitize()` now runs outside `_file_lock` to prevent potential deadlock
@@ -185,38 +185,38 @@ python -m unittest discover -v
 
 ---
 
-## 🇹🇼 中文說明
+## 中文說明
 
 這是一個基於 [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet) 重構的乾淨版本，使用 **PyQt5** 作為前端 GUI，結合本地 Ollama 模型實現對話、視覺識別、語音合成與桌寵互動，完全離線運行。
 
-### ✅ 發布狀態（v1.0.0 — 正式版）
+### 發布狀態（v1.0.0 — 正式版）
 
 核心功能已完整穩定。AI 模型、對話流程、語音合成與桌寵前端均正常運作。視窗縮放等 UI 細節持續優化中，歡迎透過 [GitHub Issues](https://github.com/wallouo/InabaPet/issues) 回報問題。
 
-### 🗺️ UI 開發路線圖
+### UI 開發路線圖
 
 | 功能 | 狀態 |
 |---|---|
-| 視窗縮放支援 | 🔧 開發中 |
-| 角色立繪動態縮放 | 📋 計畫中 |
-| 設定面板 | 📋 計畫中 |
+| 視窗縮放支援 | 開發中 |
+| 角色立繪動態縮放 | 計畫中 |
+| 設定面板 | 計畫中 |
 
 ---
 
-### 🤖 模型架構
+### 模型架構
 
 | 角色 | 模型 | 狀態 |
 |---|---|---|
-| 對話與角色扮演 | **meguru**（Qwen 3.5 4B 微調版，透過 Ollama） | ✅ 運作中 |
-| 視覺識別 | **qwen3-vl:4b-instruct**（透過 Ollama） | ✅ 運作中 |
-| 翻譯（中 / 英 / 日） | **qwen3.5:2b**（透過 Ollama） | ✅ 運作中 |
-| 語音合成 | VITS（vits-simple-api）+ Mock 保底 | ✅ 運作中 |
+| 對話與角色扮演 | **meguru**（Qwen 3.5 4B 微調版，透過 Ollama） | 運作中 |
+| 視覺識別 | **qwen3-vl:4b-instruct**（透過 Ollama） | 運作中 |
+| 翻譯（中 / 英 / 日） | **qwen3.5:2b**（透過 Ollama） | 運作中 |
+| 語音合成 | VITS（vits-simple-api）+ Mock 保底 | 運作中 |
 
 > **升級說明 (2026-05-02)：** 對話模型已從 InabaV1（Qwen 2.5 7B）升級至 **meguru**（Qwen 3.5 4B 微調版）。視覺識別已透過 `VisionConnector` 正式整合。
 
 ---
 
-### 🚀 快速啟動
+### 快速啟動
 
 #### 模型安裝
 
@@ -243,7 +243,7 @@ ollama pull qwen3.5:2b
 
 ---
 
-### 🔌 API 端點
+### API 端點
 
 | 端點 | 方法 | 說明 |
 |---|---|---|
@@ -258,7 +258,7 @@ ollama pull qwen3.5:2b
 
 ---
 
-### 🧪 開發工具
+### 開發工具
 
 ```powershell
 # 健康檢查
@@ -270,10 +270,10 @@ python -m unittest discover -v
 
 ---
 
-### ✨ 本次更新（fix branch — 2026-05-02）
+### 本次更新（fix branch — 2026-05-02）
 
 <details>
-<summary>🐛 錯誤修復</summary>
+<summary>錯誤修復</summary>
 
 - **`api.py`**：修復錯誤 import，解決 FastAPI 無法在連接埠 5000 啟動的問題
 - **`vision/vision_connector.py`**：移除合併錯誤造成的重複程式碼，修復啟動時 `SyntaxError`
@@ -282,7 +282,7 @@ python -m unittest discover -v
 </details>
 
 <details>
-<summary>🔨 重構模組</summary>
+<summary>重構模組</summary>
 
 **`logic/memory.py`** — 執行緒安全重寫：`_sanitize()` 移至 `_file_lock` 外、新增 `last_error`、背景執行緒非同步存檔
 
