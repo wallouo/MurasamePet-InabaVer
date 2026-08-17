@@ -51,6 +51,8 @@ A clean, refactored fork of [MurasamePet](https://github.com/LemonQu-GIT/Murasam
 
 > **v1.0.0 note:** Chat model upgraded from InabaV1 (Qwen 2.5 7B) → **meguru** (Qwen 3.5 4B fine-tune). Visual recognition via `VisionConnector` is now live.
 
+The fine-tuned **Inaba** model is publicly available on Hugging Face: [wallouo/Inaba](https://huggingface.co/wallouo/Inaba)
+
 ---
 
 ## Release Status — v1.0.0 (Stable)
@@ -82,12 +84,12 @@ Core functionality is complete and stable. The AI model, chat pipeline, voice sy
 
 #### Chat model — `meguru`
 
-The model file is not bundled in the repo. Download and import manually:
+The model file is available on Hugging Face. Download and import manually:
 
 ```powershell
 # 1. Install Ollama from https://ollama.com
 # 2. Download meguru_q4_k_m.gguf + Modelfile from HuggingFace:
-#    https://huggingface.co/wallouo/InabaV1/tree/main
+#    https://huggingface.co/wallouo/Inaba
 # 3. Import into Ollama (run in the download folder):
 ollama create meguru -f Modelfile
 # 4. Verify
@@ -189,6 +191,8 @@ python -m unittest discover -v
 
 這是一個基於 [MurasamePet](https://github.com/LemonQu-GIT/MurasamePet) 重構的乾淨版本，使用 **PyQt5** 作為前端 GUI，結合本地 Ollama 模型實現對話、視覺識別、語音合成與桌寵互動，完全離線運行。
 
+微調後的 **Inaba** 模型已公開發布於 Hugging Face：[wallouo/Inaba](https://huggingface.co/wallouo/Inaba)
+
 ### 發布狀態（v1.0.0 — 正式版）
 
 核心功能已完整穩定。AI 模型、對話流程、語音合成與桌寵前端均正常運作。視窗縮放等 UI 細節持續優化中，歡迎透過 [GitHub Issues](https://github.com/wallouo/InabaPet/issues) 回報問題。
@@ -221,8 +225,8 @@ python -m unittest discover -v
 #### 模型安裝
 
 ```powershell
-# 對話模型（需手動從 HuggingFace 下載後匯入）
-# https://huggingface.co/wallouo/InabaV1/tree/main
+# 對話模型（從 HuggingFace 下載後匯入）
+# https://huggingface.co/wallouo/Inaba
 ollama create meguru -f Modelfile
 
 # 視覺模型
