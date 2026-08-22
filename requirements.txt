@@ -18,5 +18,9 @@ fastapi>=0.100.0
 uvicorn>=0.23.0
 pydantic>=2.0.0
 
+# Optional exact prompt accounting from the retained GGUF; keep the UTF-8
+# fallback when this platform cannot install the native package.
+# llama-cpp-python>=0.3.0
+
 # Audio & TTS (System dependent, may need ffmpeg on host)
 # Note: Audio playback in frontend uses QtMultimedia

@@ -40,6 +40,10 @@ temp/
 *.pth
 *.onnx
 *.bin
+models/tokenizers/
+models/embeddings/
+data/knowledge/chroma/
+data/context_budget_manifest.json
 
 # Assets
 assets/audio/
@@ -53,3 +57,5 @@ tools/model_training/config_v3_quant_safe_bf16.yaml
 .env
 *.approval_log.json
 memory.json
+tools/model_training/meguru_q4_k_m.gguf
+tools/model_training/Modelfile
