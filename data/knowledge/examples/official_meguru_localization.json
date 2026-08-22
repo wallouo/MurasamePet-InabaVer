@@ -1,0 +1,13 @@
+{
+  "id": "sanoba-witch-meguru-localization",
+  "title": "《魔女的夜宴》官方中文角色页：因幡めぐる",
+  "source_url": "https://hikarifield.co.jp/sothewitch/character.html",
+  "text": "HIKARI FIELD《魔女的夜宴》官方中文游戏角色页列出了因幡めぐる（Meguru Inaba）；这是可用于中文检索的官方本地化角色名称信息。",
+  "route_scope": "meguru",
+  "perspective_status": "universal",
+  "document_format": "json",
+  "source_authority": "official_localization",
+  "language": "zh-Hans",
+  "character_tags": ["meguru"],
+  "relationship_tags": []
+}

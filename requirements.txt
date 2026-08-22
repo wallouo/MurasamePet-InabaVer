@@ -19,8 +19,13 @@ uvicorn>=0.23.0
 pydantic>=2.0.0
 
 # Optional exact prompt accounting from the retained GGUF; keep the UTF-8
-# fallback when this platform cannot install the native package.
-# llama-cpp-python>=0.3.0
+# fallback when this platform cannot install the native package.  On Windows,
+# the validated CPU wheel is installed from llama-cpp-python's extra index:
+# python -m pip install --only-binary=:all: --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu "llama-cpp-python>=0.3.35"
+
+# Phase 2 local RAG indexing (the embedding model itself is supplied locally)
+chromadb>=0.5.0
+sentence-transformers>=3.0.0
 
 # Audio & TTS (System dependent, may need ffmpeg on host)
 # Note: Audio playback in frontend uses QtMultimedia
