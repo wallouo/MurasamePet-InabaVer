@@ -116,7 +116,7 @@ async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
         ) from exc
 
     # 3. 組 prompt
-    injected = budgeted.injected
+    injected = budgeted_prompt.injected
     ollama_payload = {
         "model":   OLLAMA_MODEL,
         "messages": [{"role": "user", "content": injected}],
