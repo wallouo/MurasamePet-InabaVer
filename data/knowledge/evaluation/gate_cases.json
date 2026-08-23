@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {"name": "identity_ja_paraphrase", "language": "ja", "query": "めぐるってどんなキャラクター？", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "identity_profile", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "identity_zh_hant_paraphrase", "language": "zh-Hant", "query": "因幡めぐる是誰？", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "identity_profile", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "identity_zh_hans_paraphrase", "language": "zh-Hans", "query": "请介绍一下因幡めぐる。", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "identity_profile", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "identity_en_paraphrase", "language": "en", "query": "Tell me about Meguru Inaba.", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "identity_profile", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+
+    {"name": "song_ja", "language": "ja", "query": "因幡めぐるのキャラクターソングは何？", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "character_song", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "song_zh_hant", "language": "zh-Hant", "query": "因幡めぐる的角色歌叫什麼？", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "character_song", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "song_zh_hans", "language": "zh-Hans", "query": "因幡めぐる的角色歌是什么？", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "character_song", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "song_en", "language": "en", "query": "What is Meguru Inaba's character song?", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "character_song", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+
+    {"name": "unknown_domain_ja", "language": "ja", "query": "明日の天気は？", "expected_gate_decision": "abstain_unknown_domain", "expected_entities": [], "expected_domains": []},
+    {"name": "unknown_domain_zh_hant", "language": "zh-Hant", "query": "如何沖泡咖啡？", "expected_gate_decision": "abstain_unknown_domain", "expected_entities": [], "expected_domains": []},
+    {"name": "unknown_domain_zh_hans", "language": "zh-Hans", "query": "怎么更换自行车轮胎？", "expected_gate_decision": "abstain_unknown_domain", "expected_entities": [], "expected_domains": []},
+    {"name": "unknown_domain_en", "language": "en", "query": "How do I repair a toaster?", "expected_gate_decision": "abstain_unknown_domain", "expected_entities": [], "expected_domains": []},
+
+    {"name": "unsupported_fact_ja", "language": "ja", "query": "めぐるの誕生日はいつ？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "birthday", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "unsupported_fact_zh_hant", "language": "zh-Hant", "query": "Meguru 最喜歡哪種顏色？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "favorite_color", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "unsupported_fact_zh_hans", "language": "zh-Hans", "query": "因幡めぐる喜欢吃什么？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "favorite_food", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "unsupported_fact_en", "language": "en", "query": "When is Meguru Inaba's birthday?", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "birthday", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+
+    {"name": "ambiguous_ja", "language": "ja", "query": "彼女はどんな人？", "expected_gate_decision": "abstain_ambiguous_query", "expected_fact_key": "identity_profile", "expected_entities": [], "expected_domains": []},
+    {"name": "ambiguous_zh_hant", "language": "zh-Hant", "query": "她最喜歡什麼？", "expected_gate_decision": "abstain_ambiguous_query", "expected_fact_key": "favorite_unspecified", "expected_entities": [], "expected_domains": []},
+    {"name": "ambiguous_zh_hans", "language": "zh-Hans", "query": "她是谁？", "expected_gate_decision": "abstain_ambiguous_query", "expected_fact_key": "identity_profile", "expected_entities": [], "expected_domains": []},
+    {"name": "ambiguous_en", "language": "en", "query": "What does she like most?", "expected_gate_decision": "abstain_ambiguous_query", "expected_fact_key": "favorite_unspecified", "expected_entities": [], "expected_domains": []},
+
+    {"name": "unknown_entity_ja", "language": "ja", "query": "サノバウィッチの綾地寧々は誰？", "expected_gate_decision": "abstain_unknown_entity", "expected_fact_key": "identity_profile", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+    {"name": "unknown_entity_zh_hant", "language": "zh-Hant", "query": "《魔女的夜宴》中的綾地寧寧是誰？", "expected_gate_decision": "abstain_unknown_entity", "expected_fact_key": "identity_profile", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+    {"name": "unknown_entity_zh_hans", "language": "zh-Hans", "query": "《魔女的夜宴》中的绫地宁宁是谁？", "expected_gate_decision": "abstain_unknown_entity", "expected_fact_key": "identity_profile", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+    {"name": "unknown_entity_en", "language": "en", "query": "Who is Nene Ayachi in Sanoba Witch?", "expected_gate_decision": "abstain_unknown_entity", "expected_fact_key": "identity_profile", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+
+    {"name": "unknown_term_ja", "language": "ja", "query": "サノバウィッチのアルカとは何？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "setting_terminology", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+    {"name": "unknown_term_zh_hant", "language": "zh-Hant", "query": "《魔女的夜宴》中的 Arca 是什麼意思？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "setting_terminology", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+    {"name": "unknown_term_zh_hans", "language": "zh-Hans", "query": "《魔女的夜宴》中的 Arca 是什么意思？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "setting_terminology", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+    {"name": "unknown_term_en", "language": "en", "query": "What does Arca mean in Sanoba Witch?", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "setting_terminology", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+
+    {"name": "unsupported_relationship_ja", "language": "ja", "query": "因幡めぐると主人公の関係は？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "relationship", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "unsupported_relationship_zh_hant", "language": "zh-Hant", "query": "因幡めぐる和主角是什麼關係？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "relationship", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "unsupported_relationship_zh_hans", "language": "zh-Hans", "query": "因幡めぐる和主角是什么关系？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "relationship", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "unsupported_relationship_en", "language": "en", "query": "What is Meguru Inaba's relationship with the protagonist?", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "relationship", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+
+    {"name": "unsupported_route_ja", "language": "ja", "query": "因幡めぐるルートでは何が起きる？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "route_event", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "unsupported_route_zh_hant", "language": "zh-Hant", "query": "因幡めぐる路線發生了什麼？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "route_event", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "unsupported_route_zh_hans", "language": "zh-Hans", "query": "因幡めぐる路线发生了什么？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "route_event", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "unsupported_route_en", "language": "en", "query": "What happens in Meguru Inaba's route?", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "route_event", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]}
+  ]
+}

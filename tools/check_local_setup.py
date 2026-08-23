@@ -15,11 +15,12 @@ from typing import Any, Mapping
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-REQUIRED_IMPORTS = ("chromadb", "sentence_transformers", "llama_cpp")
+REQUIRED_IMPORTS = ("chromadb", "sentence_transformers", "llama_cpp", "PyQt5")
 REQUIRED_DISTRIBUTIONS = (
     "chromadb",
     "sentence-transformers",
     "llama-cpp-python",
+    "pyqt5",
 )
 LLAMA_RELEASE_PREFIX = (
     "https://github.com/abetlen/llama-cpp-python/releases/download/"

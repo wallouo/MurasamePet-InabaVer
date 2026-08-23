@@ -79,7 +79,8 @@ class SetupCheckerTests(unittest.TestCase):
         constraints.write_text(
             "chromadb==1.3.5\n"
             "sentence-transformers==5.1.2\n"
-            "llama-cpp-python==0.3.35\n",
+            "llama-cpp-python==0.3.35\n"
+            "pyqt5==5.15.11\n",
             encoding="utf-8",
         )
         e5 = root / "e5"
@@ -93,6 +94,7 @@ class SetupCheckerTests(unittest.TestCase):
             "chromadb": "1.3.5",
             "sentence-transformers": "5.1.2",
             "llama-cpp-python": "0.3.35",
+            "pyqt5": "5.15.11",
         }
         with TemporaryDirectory() as temporary:
             constraints, e5, gguf = self._paths(Path(temporary))
@@ -118,6 +120,7 @@ class SetupCheckerTests(unittest.TestCase):
             "chromadb": "1.3.5",
             "sentence-transformers": "5.1.2",
             "llama-cpp-python": "0.3.35",
+            "pyqt5": "5.15.11",
         }
         distribution = Mock(version="0.3.35")
         distribution.read_text.return_value = "Tag: py3-none-win_amd64\n"

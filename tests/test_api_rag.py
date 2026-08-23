@@ -1,5 +1,6 @@
 import unittest
 import os
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import api as api_module
@@ -43,6 +44,16 @@ class _CharacterCounter(TokenCounter):
 
 class ApiRagTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
+        self.gate_patch = patch.object(api_module, "_knowledge_gate", {})
+        self.classify_patch = patch.object(
+            api_module,
+            "classify_query",
+            return_value=SimpleNamespace(decision="allow_retrieval"),
+        )
+        self.gate_patch.start()
+        self.classify = self.classify_patch.start()
+        self.addCleanup(self.gate_patch.stop)
+        self.addCleanup(self.classify_patch.stop)
         self.result = KnowledgeSearchResult(
             chunk_id="meguru-1",
             text="因幡めぐるはゲームが好き。",
@@ -247,6 +258,61 @@ class ApiRagTests(unittest.IsolatedAsyncioTestCase):
             await api_module.chat_process(api_module.UserChatRequest(text="こんにちは"))
 
         self.assertEqual(self.retriever.calls, [])
+        self.classify.assert_not_called()
+
+    async def test_gate_abstention_skips_dense_retrieval_and_reports_stable_code(self):
+        self.classify.return_value = SimpleNamespace(
+            decision="abstain_unsupported_fact"
+        )
+        with (
+            patch.object(api_module, "RAG_ENABLED", True),
+            patch.object(api_module, "_rag_retriever", None),
+            patch.object(api_module, "KnowledgeRetriever") as retriever_type,
+            patch.object(api_module._memory, "get", return_value={"name": "", "last_topic": "", "mood": ""}),
+            patch.object(api_module._memory, "set"),
+            patch.object(api_module.requests, "post", return_value=_Response()) as post,
+            patch.object(api_module, "tts", new=AsyncMock(return_value={"wav_path": "", "backend": "mock"})),
+            patch.dict(os.environ, {"CONTEXT_DIAGNOSTICS": "true"}),
+        ):
+            response = await api_module.chat_process(
+                api_module.UserChatRequest(
+                    text="What is Meguru Inaba's favorite food?",
+                    use_knowledge=True,
+                )
+            )
+
+        retriever_type.assert_not_called()
+        self.assertNotIn(
+            "[参考知識", post.call_args.kwargs["json"]["messages"][0]["content"]
+        )
+        self.assertEqual(
+            response["context"]["rag_gate_decision"],
+            "abstain_unsupported_fact",
+        )
+        rendered = str(response["context"])
+        for internal_field in ("rationale", "fact_key", "entities", "excerpt"):
+            self.assertNotIn(internal_field, rendered)
+
+    async def test_missing_gate_skips_dense_retrieval_and_keeps_chat_working(self):
+        with (
+            patch.object(api_module, "RAG_ENABLED", True),
+            patch.object(api_module, "_knowledge_gate", None),
+            patch.object(api_module, "_rag_retriever", None),
+            patch.object(api_module, "KnowledgeRetriever") as retriever_type,
+            patch.object(api_module._memory, "get", return_value={"name": "", "last_topic": "", "mood": ""}),
+            patch.object(api_module._memory, "set"),
+            patch.object(api_module.requests, "post", return_value=_Response()) as post,
+            patch.object(api_module, "tts", new=AsyncMock(return_value={"wav_path": "", "backend": "mock"})),
+        ):
+            response = await api_module.chat_process(
+                api_module.UserChatRequest(text="Who is Meguru Inaba?", use_knowledge=True)
+            )
+
+        retriever_type.assert_not_called()
+        self.assertNotIn(
+            "[参考知識", post.call_args.kwargs["json"]["messages"][0]["content"]
+        )
+        self.assertTrue(response["text"])
 
     async def test_unready_backend_ignores_true_request_and_keeps_chat_working(self):
         with (
@@ -264,6 +330,36 @@ class ApiRagTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.retriever.calls, [])
         self.assertNotIn("[参考知識", post.call_args.kwargs["json"]["messages"][0]["content"])
         self.assertTrue(response["text"])
+
+    async def test_non_chat_routes_do_not_opt_into_knowledge(self):
+        chat_result = {
+            "text": "ok",
+            "subtitle_zh": "ok",
+            "wav_path": "",
+            "emotion": "happy",
+            "backend": "mock",
+        }
+        with patch.object(
+            api_module, "chat_process", new=AsyncMock(return_value=chat_result)
+        ) as chat:
+            await api_module.pat()
+            pat_request = chat.await_args.args[0]
+            self.assertFalse(pat_request.use_knowledge)
+
+            await api_module.say(api_module.SayRequest(text="hello"))
+            say_request = chat.await_args.args[0]
+            self.assertFalse(say_request.use_knowledge)
+
+        with (
+            patch.object(api_module, "chat_process", new=AsyncMock()) as chat,
+            patch.object(
+                api_module,
+                "tts",
+                new=AsyncMock(return_value={"wav_path": "", "backend": "mock"}),
+            ),
+        ):
+            await api_module.greet()
+        chat.assert_not_awaited()
 
 
 if __name__ == "__main__":

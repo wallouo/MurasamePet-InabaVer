@@ -11,7 +11,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from logic.knowledge import KnowledgeError, KnowledgeStore, ingest_paths  # noqa: E402
+from logic.knowledge import (  # noqa: E402
+    KNOWLEDGE_CHUNK_SCHEMA_VERSION,
+    KnowledgeError,
+    KnowledgeStore,
+    corpus_version,
+    ingest_paths,
+)
 
 
 def main() -> int:
@@ -60,6 +66,10 @@ def main() -> int:
     )
     args = parser.parse_args()
     try:
+        if args.replace and (len(args.paths) != 1 or not args.paths[0].is_dir()):
+            raise KnowledgeError(
+                "release-ready replacement requires exactly one corpus directory"
+            )
         store = KnowledgeStore(
             persist_path=args.chroma_path,
             collection_name=args.collection,
@@ -67,12 +77,24 @@ def main() -> int:
         )
         if args.replace:
             store.reset()
+        store.invalidate_release_metadata()
         result = ingest_paths(
             args.paths,
             store,
             target_chars=args.target_chars,
             overlap_chars=args.overlap_chars,
         )
+        if args.replace:
+            store.publish_release_metadata(
+                {
+                    "corpus_version": corpus_version(args.paths[0]),
+                    "embedding_model_id": store.embedding_model_id,
+                    "embedding_dimension": store.embedding_dimension,
+                    "chunk_schema_version": KNOWLEDGE_CHUNK_SCHEMA_VERSION,
+                    "chunk_target_chars": args.target_chars,
+                    "chunk_overlap_chars": args.overlap_chars,
+                }
+            )
     except (KnowledgeError, OSError) as exc:
         parser.error(str(exc))
     print(

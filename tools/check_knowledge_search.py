@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import math
 import os
@@ -16,12 +15,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from logic.context_manifest import sha256_file  # noqa: E402
 from logic.environment import load_project_env  # noqa: E402
 from logic.knowledge import (  # noqa: E402
     KnowledgeError,
     KnowledgeStore,
-    iter_knowledge_files,
+    corpus_version,
 )
 
 load_project_env(ROOT / "api.py")
@@ -43,27 +41,6 @@ class CaseScores:
         if len(self.results) < 2:
             return 1.0 if self.results else 0.0
         return self.top_score - float(self.results[1]["similarity"])
-
-
-def corpus_version(corpus_path: Path) -> str:
-    """Hash sorted relative paths and source hashes, excluding generated state."""
-
-    files = [
-        path
-        for path in iter_knowledge_files([corpus_path])
-        if not {"chroma", "evaluation"}.intersection(
-            part.lower() for part in path.relative_to(corpus_path).parts
-        )
-    ]
-    digest = hashlib.sha256()
-    for path in sorted(files, key=lambda item: item.relative_to(corpus_path).as_posix()):
-        relative = path.relative_to(corpus_path).as_posix()
-        source_hash = sha256_file(path)
-        digest.update(relative.encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(source_hash.encode("ascii"))
-        digest.update(b"\n")
-    return digest.hexdigest()
 
 
 def evaluate_policy(

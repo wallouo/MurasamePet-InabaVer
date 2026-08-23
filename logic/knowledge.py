@@ -20,11 +20,20 @@ DOCUMENT_FORMATS = frozenset({"markdown", "json"})
 SOURCE_AUTHORITIES = frozenset(
     {"official", "official_localization", "secondary", "curated", "fan_verified"}
 )
+E5_MODEL_ID = "intfloat_multilingual_e5_small"
+E5_EMBEDDING_DIMENSION = 384
+KNOWLEDGE_CHUNK_SCHEMA_VERSION = 1
 _CHATML_CONTROL_TOKEN = re.compile(r"<\|[^|\r\n<>]+\|>", re.IGNORECASE)
 
 
 class KnowledgeError(ValueError):
     """A knowledge document or local index cannot be used safely."""
+
+
+@dataclass(frozen=True)
+class IndexSnapshot:
+    metadata: Mapping[str, Any]
+    document_ids: frozenset[str]
 
 
 def validate_prompt_safe_text(value: str, field: str) -> None:
@@ -219,6 +228,59 @@ def iter_knowledge_files(paths: Sequence[str | Path]) -> list[Path]:
     return sorted(set(files), key=lambda item: str(item).lower())
 
 
+def corpus_version(corpus_path: str | Path) -> str:
+    """Hash sorted corpus-relative paths and content, excluding generated state."""
+
+    root = Path(corpus_path)
+    files = [
+        path
+        for path in iter_knowledge_files([root])
+        if not {"chroma", "evaluation"}.intersection(
+            part.lower() for part in path.relative_to(root).parts
+        )
+    ]
+    digest = hashlib.sha256()
+    for path in sorted(files, key=lambda item: item.relative_to(root).as_posix()):
+        relative = path.relative_to(root).as_posix()
+        source_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(source_hash.encode("ascii"))
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def read_index_snapshot(
+    persist_path: str | Path,
+    collection_name: str,
+    document_ids: Sequence[str] = (),
+) -> IndexSnapshot:
+    """Read collection identity and document IDs without loading an embedder."""
+
+    try:
+        import chromadb
+    except ImportError as exc:
+        raise KnowledgeError("chromadb is unavailable") from exc
+    client = chromadb.PersistentClient(path=str(Path(persist_path)))
+    collection = client.get_collection(collection_name)
+    result = (
+        collection.get(
+            where={"document_id": {"$in": sorted(set(document_ids))}},
+            include=["metadatas"],
+        )
+        if document_ids
+        else {"metadatas": []}
+    )
+    return IndexSnapshot(
+        metadata=dict(collection.metadata or {}),
+        document_ids=frozenset(
+            str(metadata.get("document_id"))
+            for metadata in (result.get("metadatas") or [])
+            if metadata and metadata.get("document_id")
+        ),
+    )
+
+
 def _split_long_piece(text: str, target_chars: int) -> list[str]:
     if len(text) <= target_chars:
         return [text]
@@ -338,7 +400,14 @@ class _E5EmbeddingFunction:
 
     @staticmethod
     def name() -> str:
-        return "intfloat_multilingual_e5_small"
+        return E5_MODEL_ID
+
+    def dimension(self) -> int:
+        get_dimension = getattr(self._model, "get_embedding_dimension", None)
+        if get_dimension is None:
+            get_dimension = self._model.get_sentence_embedding_dimension
+        dimension = get_dimension()
+        return int(dimension)
 
     @staticmethod
     def build_from_config(config: Mapping[str, Any]) -> "_E5EmbeddingFunction":
@@ -410,6 +479,34 @@ class KnowledgeStore:
     def count(self) -> int:
         return int(self._collection.count())
 
+    @property
+    def embedding_model_id(self) -> str:
+        return str(self._embedding_function.name())
+
+    @property
+    def embedding_dimension(self) -> int:
+        dimension = getattr(self._embedding_function, "dimension", None)
+        if not callable(dimension):
+            raise KnowledgeError("embedding dimension is unavailable")
+        return int(dimension())
+
+    def invalidate_release_metadata(self) -> None:
+        self._modify_release_metadata({"index_state": "unverified"})
+
+    def publish_release_metadata(self, metadata: Mapping[str, Any]) -> None:
+        self._modify_release_metadata({"index_state": "ready", **metadata})
+
+    def _modify_release_metadata(self, updates: Mapping[str, Any]) -> None:
+        # Chroma rejects hnsw:* keys during modify because they are immutable
+        # collection configuration, even when their values are unchanged.
+        metadata = {
+            key: value
+            for key, value in (self._collection.metadata or {}).items()
+            if not key.startswith("hnsw:")
+        }
+        metadata.update(updates)
+        self._collection.modify(metadata=metadata)
+
     def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
         embed_query = getattr(self._embedding_function, "embed_query", None)
         return embed_query(texts) if embed_query else self._embedding_function(texts)
@@ -471,10 +568,7 @@ class KnowledgeStore:
         return matches
 
     def reset(self) -> None:
-        try:
-            self._client.delete_collection(self._collection_name)
-        except Exception:
-            pass
+        self._client.delete_collection(self._collection_name)
         self._collection = self._open_collection()
 
 

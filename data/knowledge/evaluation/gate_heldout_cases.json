@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "suite_role": "held_out",
+  "review_note": "Keep queries disjoint from development fixtures. A failure blocks release verification; do not weaken labels to pass.",
+  "cases": [
+    {"name": "heldout_identity_ja", "language": "ja", "query": "因幡めぐるはどんな人物として描かれていますか？", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "identity_profile", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_birth_ja", "language": "ja", "query": "因幡めぐるの誕生日の日付はいつですか？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "birthday", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_food_ja", "language": "ja", "query": "因幡めぐるの好きな食べ物を知っていますか？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "favorite_food", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_unrelated_ja", "language": "ja", "query": "電車の乗り換え方を説明できますか？", "expected_gate_decision": "abstain_unknown_domain", "expected_entities": [], "expected_domains": []},
+    {"name": "heldout_unknown_entity_ja", "language": "ja", "query": "サノバウィッチに出てくる椎葉紬について教えてもらえますか？", "expected_gate_decision": "abstain_unknown_entity", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_ambiguous_ja", "language": "ja", "query": "彼女のことをもう少し話せますか？", "expected_gate_decision": "abstain_ambiguous_query", "expected_entities": [], "expected_domains": []},
+
+    {"name": "heldout_identity_zh_hant", "language": "zh-Hant", "query": "可以介紹一下 Meguru Inaba 這位角色嗎？", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "identity_profile", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_birth_zh_hant", "language": "zh-Hant", "query": "我想知道因幡めぐる的生日日期，可以嗎？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "birthday", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_food_zh_hant", "language": "zh-Hant", "query": "因幡めぐる喜歡吃什麼料理呢？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "favorite_food", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_unrelated_zh_hant", "language": "zh-Hant", "query": "可以告訴我怎麼整理書桌嗎？", "expected_gate_decision": "abstain_unknown_domain", "expected_entities": [], "expected_domains": []},
+    {"name": "heldout_unknown_entity_zh_hant", "language": "zh-Hant", "query": "《魔女的夜宴》裡的戶隱憧子最近如何？", "expected_gate_decision": "abstain_unknown_entity", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_ambiguous_zh_hant", "language": "zh-Hant", "query": "她最近有什麼值得一提的事嗎？", "expected_gate_decision": "abstain_ambiguous_query", "expected_entities": [], "expected_domains": []},
+
+    {"name": "heldout_identity_zh_hans", "language": "zh-Hans", "query": "能介绍一下 Meguru Inaba 这个角色吗？", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "identity_profile", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_birth_zh_hans", "language": "zh-Hans", "query": "我想知道因幡めぐる的生日日期，可以吗？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "birthday", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_food_zh_hans", "language": "zh-Hans", "query": "因幡めぐる喜欢吃什么料理呢？", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "favorite_food", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_unrelated_zh_hans", "language": "zh-Hans", "query": "怎样给阳台上的植物浇水？", "expected_gate_decision": "abstain_unknown_domain", "expected_entities": [], "expected_domains": []},
+    {"name": "heldout_unknown_entity_zh_hans", "language": "zh-Hans", "query": "《魔女的夜宴》里的假屋和奏最近怎么样？", "expected_gate_decision": "abstain_unknown_entity", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_ambiguous_zh_hans", "language": "zh-Hans", "query": "她最近有什么值得一提的事吗？", "expected_gate_decision": "abstain_ambiguous_query", "expected_entities": [], "expected_domains": []},
+
+    {"name": "heldout_identity_en", "language": "en", "query": "Could you tell me about Meguru Inaba as a character?", "expected_gate_decision": "allow_retrieval", "expected_fact_key": "identity_profile", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_birth_en", "language": "en", "query": "Do we know Meguru Inaba's birthday date?", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "birthday", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_food_en", "language": "en", "query": "Could you name Meguru Inaba's favorite food for me?", "expected_gate_decision": "abstain_unsupported_fact", "expected_fact_key": "favorite_food", "expected_entities": ["meguru"], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_unrelated_en", "language": "en", "query": "Could you explain how to clean a coffee grinder?", "expected_gate_decision": "abstain_unknown_domain", "expected_entities": [], "expected_domains": []},
+    {"name": "heldout_unknown_entity_en", "language": "en", "query": "How is Touko Togakushi doing in Sanoba Witch?", "expected_gate_decision": "abstain_unknown_entity", "expected_entities": [], "expected_domains": ["sanoba_witch"]},
+    {"name": "heldout_ambiguous_en", "language": "en", "query": "Could you say something more about her?", "expected_gate_decision": "abstain_ambiguous_query", "expected_entities": [], "expected_domains": []}
+  ]
+}

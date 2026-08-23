@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "corpus_path": "data/knowledge/examples",
+  "corpus_version": "cfe2a18b27103818a45db11c06b86444e80a51a87677ee06be61b2a3f17e8302",
+  "metadata_schema": {
+    "entity": "Stable entity ID, aliases present in or directly derived from curated source metadata, and evidence-backed supported_facts.",
+    "supported_fact": "Fact key mapped to document IDs plus corpus-verbatim evidence excerpts. The loader verifies each excerpt; tags alone are not evidence.",
+    "domain": "Work/world identifier with multilingual aliases and optional evidence-backed terminology facts.",
+    "relationship": "Exact entity-ID pair or set with evidence-backed relationship facts; entity tags alone do not create an edge.",
+    "fact_recognizer": "Small multilingual phrase list used only to infer a candidate fact key; recognition never implies corpus support."
+  },
+  "maintenance": [
+    "After corpus changes, update corpus_version and review every entity alias and supported fact against source text.",
+    "The inventory corpus_path must resolve to the exact configured RAG_CORPUS_PATH; an example inventory must not validate a private corpus.",
+    "Add a fact key only with at least one evidence document ID; do not infer support from character or relationship tags.",
+    "Add a few multilingual query phrases only when a supported fact or observed development-case miss requires them.",
+    "Rerun development, held-out, and dense calibration after every inventory or corpus change."
+  ],
+  "pronouns": ["彼女", "彼", "她", "她的", "she", "her"],
+  "domains": [
+    {
+      "id": "sanoba_witch",
+      "aliases": ["サノバウィッチ", "魔女的夜宴", "Sanoba Witch", "sanoba-witch"],
+      "supported_facts": {}
+    }
+  ],
+  "entities": [
+    {
+      "id": "meguru",
+      "type": "character",
+      "domain_id": "sanoba_witch",
+      "aliases": ["因幡めぐる", "めぐる", "Meguru Inaba", "Meguru"],
+      "supported_facts": {
+        "identity_profile": {
+          "evidence": [
+            {
+              "document_id": "sanoba-witch-meguru-official",
+              "excerpt": "主要キャラクターの一人として「因幡めぐる」が掲載されている"
+            },
+            {
+              "document_id": "sanoba-witch-meguru-localization",
+              "excerpt": "因幡めぐる（Meguru Inaba）"
+            }
+          ]
+        },
+        "character_song": {
+          "evidence": [
+            {
+              "document_id": "sanoba-witch-meguru-song-official",
+              "excerpt": "因幡めぐる「リアルフレンド」"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "relationships": [],
+  "fact_recognizers": [
+    {"key": "character_song", "phrases": ["キャラクターソング", "角色歌", "character song", "リアルフレンド"]},
+    {"key": "birthday", "phrases": ["誕生日", "生日", "birthday", "born"]},
+    {"key": "favorite_food", "phrases": ["好きな食べ物", "喜歡吃什麼", "喜欢吃什么", "favorite food", "favourite food"]},
+    {"key": "favorite_color", "phrases": ["好きな色", "喜歡哪種顏色", "最喜歡的顏色", "喜欢的颜色", "最喜欢的颜色", "favorite color", "favourite colour"]},
+    {"key": "favorite_unspecified", "phrases": ["最喜歡什麼", "最喜欢什么", "like most"]},
+    {"key": "relationship", "phrases": ["関係", "關係", "关系", "relationship"]},
+    {"key": "hobby_interest", "phrases": ["趣味", "興趣", "兴趣", "hobby", "interests"]},
+    {"key": "route_event", "phrases": ["ルート", "路線", "路线", "route", "what happens"]},
+    {"key": "setting_terminology", "phrases": ["とは何", "どういう意味", "是什麼意思", "是什么意思", "what does", "mean"]},
+    {"key": "identity_profile", "phrases": ["紹介", "介绍", "介紹", "どんなキャラクター", "どんな人", "誰", "谁", "who is", "tell me about", "profile"]}
+  ]
+}

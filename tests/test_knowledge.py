@@ -10,6 +10,7 @@ from logic.knowledge import (
     KnowledgeChunk,
     chunk_document,
     load_documents,
+    read_index_snapshot,
 )
 
 try:
@@ -306,6 +307,10 @@ class KnowledgeTests(unittest.TestCase):
             def embed_query(self, input):
                 return self(input)
 
+            @staticmethod
+            def dimension():
+                return 2
+
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temporary:
             store = KnowledgeStore(
                 persist_path=Path(temporary) / "chroma",
@@ -319,6 +324,22 @@ class KnowledgeTests(unittest.TestCase):
                 target_chars=180,
                 overlap_chars=20,
             )
+            store._collection.modify(metadata={"owner": "test-suite"})
+            store.publish_release_metadata(
+                {
+                    "corpus_version": "corpus-v1",
+                    "embedding_model_id": store.embedding_model_id,
+                    "embedding_dimension": store.embedding_dimension,
+                    "chunk_schema_version": 1,
+                    "chunk_target_chars": 180,
+                    "chunk_overlap_chars": 20,
+                }
+            )
+            snapshot = read_index_snapshot(
+                Path(temporary) / "chroma",
+                "test_knowledge",
+                ["sanoba-witch-meguru-song-official"],
+            )
             reopened = KnowledgeStore(
                 persist_path=Path(temporary) / "chroma",
                 collection_name="test_knowledge",
@@ -326,11 +347,20 @@ class KnowledgeTests(unittest.TestCase):
                 embedding_function=HashEmbedding(),
             )
             count = reopened.count()
+            metadata = dict(reopened._collection.metadata)
             del reopened, store
             gc.collect()
 
         self.assertGreater(result["chunks"], 0)
         self.assertEqual(count, result["indexed"])
+        self.assertEqual(metadata["index_state"], "ready")
+        self.assertEqual(metadata["corpus_version"], "corpus-v1")
+        self.assertEqual(metadata["embedding_dimension"], 2)
+        self.assertEqual(metadata["owner"], "test-suite")
+        self.assertEqual(
+            snapshot.document_ids,
+            frozenset({"sanoba-witch-meguru-song-official"}),
+        )
 
 
 if __name__ == "__main__":

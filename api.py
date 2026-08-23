@@ -39,6 +39,16 @@ from logic.token_budget import (
     load_prompt_runtime,
 )
 from logic.context_manifest import evaluate_rag_readiness
+from logic.knowledge import (
+    E5_EMBEDDING_DIMENSION,
+    E5_MODEL_ID,
+    KNOWLEDGE_CHUNK_SCHEMA_VERSION,
+)
+from logic.knowledge_gate import (
+    GateRuntimeConfig,
+    classify_query,
+    evaluate_gate_readiness,
+)
 from logic.rag import (
     KnowledgeRetriever,
     RAGSettings,
@@ -103,7 +113,7 @@ _manifest_path = Path(
 )
 if not _manifest_path.is_absolute():
     _manifest_path = _repo_root / _manifest_path
-RAG_READINESS = evaluate_rag_readiness(
+_CONTEXT_RAG_READINESS = evaluate_rag_readiness(
     requested=_RAG_REQUESTED,
     manifest_path=_manifest_path,
     gguf_path=_gguf_path,
@@ -111,9 +121,34 @@ RAG_READINESS = evaluate_rag_readiness(
     ollama_show=_ollama_show,
     tokenizer_mode=_prompt_builder.counter.mode,
 )
-RAG_ENABLED = RAG_READINESS.ready
-print(f"[RAG] readiness={RAG_READINESS.reason}")
 RAG_SETTINGS = RAGSettings.from_env()
+
+
+def _project_path(value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else _repo_root / path
+
+
+if _CONTEXT_RAG_READINESS.ready:
+    RAG_READINESS = evaluate_gate_readiness(
+        GateRuntimeConfig(
+            inventory_path=_project_path(RAG_SETTINGS.gate_inventory_path),
+            corpus_path=_project_path(RAG_SETTINGS.corpus_path),
+            repo_root=_repo_root,
+            chroma_path=_project_path(RAG_SETTINGS.chroma_path),
+            collection_name=RAG_SETTINGS.collection_name,
+            embedding_model_id=E5_MODEL_ID,
+            embedding_dimension=E5_EMBEDDING_DIMENSION,
+            chunk_schema_version=KNOWLEDGE_CHUNK_SCHEMA_VERSION,
+            chunk_target_chars=RAG_SETTINGS.chunk_target_chars,
+            chunk_overlap_chars=RAG_SETTINGS.chunk_overlap_chars,
+        )
+    )
+else:
+    RAG_READINESS = _CONTEXT_RAG_READINESS
+RAG_ENABLED = RAG_READINESS.ready
+_knowledge_gate = getattr(RAG_READINESS, "gate", None)
+print(f"[RAG] readiness={RAG_READINESS.reason}")
 _rag_retriever: KnowledgeRetriever | None = None
 
 class UserChatRequest(BaseModel):
@@ -124,16 +159,24 @@ class UserChatRequest(BaseModel):
 
 def _retrieve_knowledge(
     user_text: str,
-) -> tuple[list[Any], tuple[str, ...], KnowledgeRetriever | None]:
+) -> tuple[list[Any], tuple[str, ...], KnowledgeRetriever | None, str | None]:
     """Retrieve lazily; an unavailable local index must never break chat."""
 
     global _rag_retriever
-    if not RAG_ENABLED:
-        return [], (), None
+    if not RAG_ENABLED or _knowledge_gate is None:
+        return [], (), None, None
+    gate_decision = classify_query(user_text, _knowledge_gate)
+    if gate_decision.decision != "allow_retrieval":
+        return [], (), None, gate_decision.decision
     if _rag_retriever is None:
         _rag_retriever = KnowledgeRetriever(RAG_SETTINGS)
     results = _rag_retriever.search(user_text)
-    return results, format_knowledge_blocks(results), _rag_retriever
+    return (
+        results,
+        format_knowledge_blocks(results),
+        _rag_retriever,
+        gate_decision.decision,
+    )
 
 @app.post("/chat_process")
 async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
@@ -150,10 +193,14 @@ async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
     knowledge_results: list[Any] = []
     knowledge_blocks: tuple[str, ...] = ()
     rag_retriever: KnowledgeRetriever | None = None
+    rag_gate_decision: str | None = None
     if req.use_knowledge:
-        knowledge_results, knowledge_blocks, rag_retriever = _retrieve_knowledge(
-            user_text
-        )
+        (
+            knowledge_results,
+            knowledge_blocks,
+            rag_retriever,
+            rag_gate_decision,
+        ) = _retrieve_knowledge(user_text)
     try:
         budgeted_prompt = _prompt_builder.build(
             user_text,
@@ -251,6 +298,7 @@ async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
                 else None
             ),
             "rag_readiness_reason": RAG_READINESS.reason,
+            "rag_gate_decision": rag_gate_decision,
             "rag_preferred_routes": list(RAG_SETTINGS.preferred_route_scopes),
             "ollama_prompt_eval_count": ollama_result.get("prompt_eval_count"),
             "ollama_eval_count": ollama_result.get("eval_count"),

@@ -108,7 +108,7 @@ Place curated Markdown or JSON documents under `data/knowledge/`, download
 `models/embeddings/multilingual-e5-small`, then rebuild the collection:
 
 ```powershell
-python tools/ingest_knowledge.py data/knowledge `
+python tools/ingest_knowledge.py data/knowledge/examples `
   --chroma-path data/knowledge/chroma `
   --collection meguru_knowledge `
   --embedding-model-path models/embeddings/multilingual-e5-small `
@@ -116,8 +116,10 @@ python tools/ingest_knowledge.py data/knowledge `
 ```
 
 Keep `RAG_ENABLED=false` until every local release check below passes. When it
-is set to `true`, the desktop sends `use_knowledge: true` for normal chat only;
-the backend still requires a current, passed manifest before it retrieves. API
+is set to `true`, the desktop forwards `use_knowledge: true` for normal typed
+chat only. This is configuration-controlled forwarding; there is no GUI toggle.
+The backend still requires a current, passed context manifest and knowledge
+gate before it retrieves. API
 clients may continue to send the backward-compatible `use_knowledge` boolean.
 Both entry points load the repository `.env` automatically; an explicit process
 environment variable takes precedence.
@@ -127,7 +129,8 @@ searchable; alternate-route results are labelled before prompt injection.
 
 Readiness is a startup snapshot, reported once as a concise `[RAG]
 readiness=<code>` message. After changing the GGUF, Ollama model/profile,
-manifest, local E5 asset, or source corpus, run the applicable verification
+manifest, local E5 asset, gate inventory, source corpus, or Chroma collection,
+run the applicable verification
 steps and restart the backend. The active Ollama `/api/show` response is
 authoritative; a checked-in Modelfile fallback can keep ordinary chat working
 but cannot make RAG ready.
@@ -154,6 +157,12 @@ python tools/ingest_knowledge.py data/knowledge/examples `
   --embedding-model-path models/embeddings/multilingual-e5-small `
   --replace
 
+python tools/prototype_knowledge_gate.py `
+  --inventory data/knowledge/gate_inventory.json `
+  --corpus-path data/knowledge/examples `
+  --heldout-cases data/knowledge/evaluation/gate_heldout_cases.json `
+  --report data/knowledge/evaluation/gate_report.json
+
 python tools/check_knowledge_search.py `
   --cases data/knowledge/evaluation/retrieval_cases.json `
   --corpus-path data/knowledge/examples `
@@ -173,9 +182,21 @@ negative. Rebuild the collection before calibration whenever the corpus or E5
 asset changes. A discovered candidate threshold is advisory: update the runtime
 configuration and rerun calibration before treating the release check as passed.
 
+Release ingestion must use `--replace`. Only a successful replacement publishes
+a ready Chroma identity containing the corpus version, E5 model identity and
+dimension, chunk-schema version, and chunk settings. Runtime requires the active
+corpus hash, the inventory-declared corpus version, and Chroma's corpus version
+to be identical. A missing or stale collection identity keeps RAG off. The inventory's
+`corpus_path` must resolve to the exact configured `RAG_CORPUS_PATH`; the checked-in
+example inventory must never validate a different private corpus. The held-out
+multilingual gate fixture is separate from recognizer metadata and must pass
+without weakening existing positive, negative, or abstention labels.
+
 RAG remains off when exact GGUF-native counting is unavailable, authoritative
 Ollama evidence is unavailable, or the manifest is missing, stale, or failed.
-Ordinary chat continues in all of those states. `CONTEXT_DIAGNOSTICS` stays
+It also remains off when the corpus, inventory evidence, or index identity is
+missing or mismatched. Ordinary chat continues in all of those states.
+`CONTEXT_DIAGNOSTICS` stays
 disabled by default. If enabled, provenance text, URLs, tags, IDs, and scores
 are trusted loopback-development data only; raw exceptions and local source
 paths are not returned to clients.

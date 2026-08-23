@@ -40,9 +40,13 @@ class RAGSettings:
     chroma_path: str = "data/knowledge/chroma"
     collection_name: str = "meguru_knowledge"
     embedding_model_path: str = "models/embeddings/multilingual-e5-small"
+    corpus_path: str = "data/knowledge/examples"
+    gate_inventory_path: str = "data/knowledge/gate_inventory.json"
     max_results: int = 3
     min_similarity: float = 0.70
     route_scope: str = "meguru"
+    chunk_target_chars: int = 700
+    chunk_overlap_chars: int = 80
 
     @classmethod
     def from_env(cls) -> "RAGSettings":
@@ -55,9 +59,19 @@ class RAGSettings:
             embedding_model_path=os.getenv(
                 "RAG_EMBEDDING_MODEL_PATH", cls.embedding_model_path
             ),
+            corpus_path=os.getenv("RAG_CORPUS_PATH", cls.corpus_path),
+            gate_inventory_path=os.getenv(
+                "RAG_GATE_INVENTORY_PATH", cls.gate_inventory_path
+            ),
             max_results=_env_int("RAG_MAX_RESULTS", cls.max_results),
             min_similarity=_env_float("RAG_MIN_SIMILARITY", cls.min_similarity),
             route_scope=requested_scope,
+            chunk_target_chars=_env_int(
+                "RAG_CHUNK_TARGET_CHARS", cls.chunk_target_chars, minimum=100
+            ),
+            chunk_overlap_chars=_env_int(
+                "RAG_CHUNK_OVERLAP_CHARS", cls.chunk_overlap_chars, minimum=0
+            ),
         )
 
     @property

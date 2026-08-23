@@ -4,10 +4,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from logic.knowledge import KnowledgeError
+from logic.knowledge import KnowledgeError, corpus_version
 from tools.check_knowledge_search import (
     CaseScores,
-    corpus_version,
     release_status,
     runtime_threshold,
     select_policy,
