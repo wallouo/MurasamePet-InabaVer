@@ -9,7 +9,6 @@ RAG disabled.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import re
@@ -31,6 +30,14 @@ from logic.token_budget import (  # noqa: E402
     PromptProfile,
     TOKENIZER_VALIDATION_TOLERANCE_TOKENS,
     TokenCounter,
+)
+from logic.context_manifest import (  # noqa: E402
+    CONTEXT_MANIFEST_SCHEMA_VERSION,
+    canonical_ollama_profile,
+    ollama_artifact_path,
+    runtime_parameters_present,
+    sha256_file,
+    sha256_text,
 )
 
 
@@ -62,18 +69,6 @@ STRUCT_FORMATS = {
     11: "<q",
     12: "<d",
 }
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
-def sha256_text(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def _read_exact(handle: BinaryIO, size: int) -> bytes:
@@ -248,15 +243,6 @@ def ollama_version(endpoint: str) -> str | None:
     return None
 
 
-def _ollama_artifact_path(show: Mapping[str, Any]) -> Path | None:
-    modelfile = str(show.get("modelfile") or "")
-    match = re.search(r"^FROM\s+(.+)$", modelfile, re.MULTILINE)
-    if not match:
-        return None
-    candidate = Path(match.group(1).strip().strip('"'))
-    return candidate if candidate.is_file() else None
-
-
 def validate_counter(
     *,
     endpoint: str,
@@ -340,16 +326,35 @@ def build_manifest(
     show = ollama_show(endpoint, model)
     profile = PromptProfile.from_ollama_response(show)
     counter = TokenCounter.load(gguf_path)
-    artifact = _ollama_artifact_path(show)
+    artifact = ollama_artifact_path(show)
+    artifact_hash = sha256_file(artifact) if artifact else None
+    validation_profile = canonical_ollama_profile(
+        show, model=model, artifact_sha256=artifact_hash
+    )
     artifact_info = None
     if artifact:
         artifact_info = {
             "path": str(artifact.resolve()),
             "size_bytes": artifact.stat().st_size,
-            "sha256": sha256_file(artifact),
+            "sha256": artifact_hash,
+        }
+    validation = validate_counter(
+        endpoint=endpoint,
+        model=model,
+        profile=profile,
+        counter=counter,
+        tolerance=tolerance,
+    )
+    if validation.get("status") == "passed" and not runtime_parameters_present(
+        validation_profile
+    ):
+        validation = {
+            **validation,
+            "status": "failed",
+            "reason": "active Ollama profile lacks num_ctx or num_predict",
         }
     manifest = {
-        "schema_version": 1,
+        "schema_version": CONTEXT_MANIFEST_SCHEMA_VERSION,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "gguf": gguf,
         "ollama": {
@@ -358,11 +363,12 @@ def build_manifest(
             "version": ollama_version(endpoint),
             "modified_at": show.get("modified_at"),
             "artifact": artifact_info,
-            "template_sha256": sha256_text(str(show.get("template") or "")),
-            "system_sha256": sha256_text(str(show.get("system") or "")),
+            "template_sha256": validation_profile["template_sha256"],
+            "system_sha256": validation_profile["system_sha256"],
             "parameters": show.get("parameters"),
             "parameters_sha256": sha256_text(str(show.get("parameters") or "")),
             "details": show.get("details"),
+            "validation_profile": validation_profile,
         },
         "counter": {
             "requested": "gguf_native_if_available",
@@ -371,13 +377,7 @@ def build_manifest(
             "fallback": "utf8_upper_bound",
             "rag_default_enabled": False,
         },
-        "validation": validate_counter(
-            endpoint=endpoint,
-            model=model,
-            profile=profile,
-            counter=counter,
-            tolerance=tolerance,
-        ),
+        "validation": validation,
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(
@@ -420,7 +420,7 @@ def main() -> int:
         tolerance=args.tolerance,
     )
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
-    return 0
+    return 0 if manifest.get("validation", {}).get("status") == "passed" else 1
 
 
 if __name__ == "__main__":

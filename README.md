@@ -115,11 +115,22 @@ python tools/ingest_knowledge.py data/knowledge `
   --replace
 ```
 
-Set `RAG_ENABLED=true` only after GGUF-native tokenizer validation, and send
-`{"text":"...", "use_knowledge":true}` to `/chat_process` when retrieval is
-desired. `RAG_MIN_SIMILARITY`, `RAG_MAX_RESULTS`, and `RAG_ROUTE_SCOPE` control
-relevance, result count, and the preferred tie-break route. All route scopes
-remain searchable; alternate-route results are labelled before prompt injection.
+Keep `RAG_ENABLED=false` until every local release check below passes. When it
+is set to `true`, the desktop sends `use_knowledge: true` for normal chat only;
+the backend still requires a current, passed manifest before it retrieves. API
+clients may continue to send the backward-compatible `use_knowledge` boolean.
+Both entry points load the repository `.env` automatically; an explicit process
+environment variable takes precedence.
+`RAG_MIN_SIMILARITY`, `RAG_MAX_RESULTS`, and `RAG_ROUTE_SCOPE` control relevance,
+result count, and the preferred tie-break route. All route scopes remain
+searchable; alternate-route results are labelled before prompt injection.
+
+Readiness is a startup snapshot, reported once as a concise `[RAG]
+readiness=<code>` message. After changing the GGUF, Ollama model/profile,
+manifest, local E5 asset, or source corpus, run the applicable verification
+steps and restart the backend. The active Ollama `/api/show` response is
+authoritative; a checked-in Modelfile fallback can keep ordinary chat working
+but cannot make RAG ready.
 
 #### Local release verification
 
@@ -134,6 +145,9 @@ python tools/verify_context_budget.py `
   --manifest data/context_budget_manifest.json `
   --model meguru
 
+python tools/check_local_setup.py `
+  --install-report .venv/install-report.json
+
 python tools/ingest_knowledge.py data/knowledge/examples `
   --chroma-path data/knowledge/chroma `
   --collection meguru_knowledge `
@@ -141,6 +155,8 @@ python tools/ingest_knowledge.py data/knowledge/examples `
   --replace
 
 python tools/check_knowledge_search.py `
+  --cases data/knowledge/evaluation/retrieval_cases.json `
+  --corpus-path data/knowledge/examples `
   --chroma-path data/knowledge/chroma `
   --collection meguru_knowledge `
   --embedding-model-path models/embeddings/multilingual-e5-small
@@ -148,8 +164,21 @@ python tools/check_knowledge_search.py `
 python -m unittest discover -s tests -p "test_*.py"
 ```
 
-RAG remains off when exact GGUF-native counting is unavailable or validation
-fails; ordinary chat must continue in that state.
+`verify_context_budget.py` writes schema-v2 local state and exits non-zero unless
+validation passes. Retrieval calibration is tied to a deterministic corpus
+version and also exits non-zero if the corpus changed, a positive misses, or a
+hard negative is accepted. Review all labels before recording a new corpus
+version; a fact that becomes intentionally supported must no longer be labelled
+negative. Rebuild the collection before calibration whenever the corpus or E5
+asset changes. A discovered candidate threshold is advisory: update the runtime
+configuration and rerun calibration before treating the release check as passed.
+
+RAG remains off when exact GGUF-native counting is unavailable, authoritative
+Ollama evidence is unavailable, or the manifest is missing, stale, or failed.
+Ordinary chat continues in all of those states. `CONTEXT_DIAGNOSTICS` stays
+disabled by default. If enabled, provenance text, URLs, tags, IDs, and scores
+are trusted loopback-development data only; raw exceptions and local source
+paths are not returned to clients.
 
 #### Vision model
 
@@ -172,9 +201,10 @@ This project includes a one-click startup script that handles everything automat
 
 The script will:
 - Create and activate a virtual environment
-- Install dependencies (`fastapi`, `uvicorn`, `requests`, `PyQt5`, `pydantic`)
+- Install `requirements.txt` under the clean-Windows `constraints.txt`
+- Require the official Windows AMD64 `llama-cpp-python` CPU wheel (no source build fallback)
 - Start Ollama with the correct parallel model config
-- Start the FastAPI backend on **port 5000**
+- Start the FastAPI backend on loopback (`127.0.0.1:5000`)
 - Launch the desktop pet frontend (`pet.py`)
 
 > **Note:** If you add more Ollama models, update `$env:OLLAMA_MAX_LOADED_MODELS` in `run_local.ps1` (currently set to `3`).

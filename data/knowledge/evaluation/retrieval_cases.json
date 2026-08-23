@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "corpus_version": "cfe2a18b27103818a45db11c06b86444e80a51a87677ee06be61b2a3f17e8302",
+  "review_note": "Review every label after a corpus change before replacing corpus_version.",
+  "cases": [
+    {"name": "japanese_question", "language": "ja", "query": "因幡めぐるは公式サイトでどのように紹介されていますか？", "expected_document_ids": ["sanoba-witch-meguru-official"]},
+    {"name": "traditional_chinese_question", "language": "zh-Hant", "query": "《魔女的夜宴》中因幡めぐる是谁？", "expected_document_ids": ["sanoba-witch-meguru-official", "sanoba-witch-meguru-localization"]},
+    {"name": "english_question", "language": "en", "query": "Who is Meguru Inaba?", "expected_document_ids": ["sanoba-witch-meguru-official", "sanoba-witch-meguru-localization"]},
+    {"name": "character_aliases", "language": "mixed", "query": "因幡めぐる / Meguru Inaba", "expected_document_ids": ["sanoba-witch-meguru-official", "sanoba-witch-meguru-localization"]},
+    {"name": "negative_ja_weather", "language": "ja", "query": "今日の天気を教えて。", "expected_document_ids": []},
+    {"name": "negative_ja_bread", "language": "ja", "query": "食パンの焼き方を教えて。", "expected_document_ids": []},
+    {"name": "negative_ja_food", "language": "ja", "query": "因幡めぐるの好きな食べ物は何？", "expected_document_ids": []},
+    {"name": "negative_zh_hant_weather", "language": "zh-Hant", "query": "今天倫敦的天氣如何？", "expected_document_ids": []},
+    {"name": "negative_zh_hant_bread", "language": "zh-Hant", "query": "麵包要怎麼烤？", "expected_document_ids": []},
+    {"name": "negative_zh_hant_birthday", "language": "zh-Hant", "query": "因幡めぐる的生日是幾月幾日？", "expected_document_ids": []},
+    {"name": "negative_zh_hans_weather", "language": "zh-Hans", "query": "今天伦敦的天气怎么样？", "expected_document_ids": []},
+    {"name": "negative_zh_hans_bicycle", "language": "zh-Hans", "query": "怎么修理自行车？", "expected_document_ids": []},
+    {"name": "negative_zh_hans_color", "language": "zh-Hans", "query": "因幡めぐる最喜欢的颜色是什么？", "expected_document_ids": []},
+    {"name": "negative_en_weather", "language": "en", "query": "What is the weather today?", "expected_document_ids": []},
+    {"name": "negative_en_bread", "language": "en", "query": "How do I bake bread?", "expected_document_ids": []},
+    {"name": "negative_en_food", "language": "en", "query": "What is Meguru Inaba's favorite food?", "expected_document_ids": []}
+  ]
+}

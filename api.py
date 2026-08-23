@@ -18,6 +18,11 @@ import requests
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
+
+from logic.environment import load_project_env
+
+load_project_env(__file__)
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from translate import translate   # ← 把 translation 改成 translate
@@ -31,8 +36,9 @@ from logic.token_budget import (
     PromptBudgetError,
     PromptBuilder,
     current_context_sections,
-    load_prompt_profile,
+    load_prompt_runtime,
 )
+from logic.context_manifest import evaluate_rag_readiness
 from logic.rag import (
     KnowledgeRetriever,
     RAGSettings,
@@ -44,7 +50,12 @@ _memory = MemoryManager()   # singleton，啟動時初始化一次
 # -------------------- 環境變數 --------------------
 OLLAMA_ENDPOINT = os.getenv("OLLAMA_ENDPOINT", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "meguru")
-_runtime_profile = load_prompt_profile(endpoint=OLLAMA_ENDPOINT, model=OLLAMA_MODEL)
+_runtime_profile, _ollama_show = load_prompt_runtime(
+    endpoint=OLLAMA_ENDPOINT, model=OLLAMA_MODEL
+)
+_PROFILE_SOURCE_CODE = (
+    "ollama_api_show" if _ollama_show is not None else "modelfile_fallback"
+)
 OLLAMA_NUM_CTX = _runtime_profile.num_ctx or int(
     os.getenv("MODEL_CONTEXT_TOKENS", "4096")
 )
@@ -79,14 +90,29 @@ _prompt_builder = PromptBuilder(
     prompt_limit=CONTEXT_PROMPT_LIMIT,
     max_user_tokens=CHAT_MAX_USER_TOKENS,
 )
-# A retrieved block is not safe to add until the local counter has been
-# validated against Ollama.  The environment flag can request RAG later, but
-# cannot override this conservative Phase 1 gate.
-RAG_ENABLED = (
-    _RAG_REQUESTED
-    and _prompt_builder.counter.exact
-    and _runtime_profile.verified
+_repo_root = Path(__file__).resolve().parent
+_gguf_path = Path(
+    os.getenv("MEGURU_GGUF_PATH", "tools/model_training/meguru_q4_k_m.gguf")
 )
+if not _gguf_path.is_absolute():
+    _gguf_path = _repo_root / _gguf_path
+_manifest_path = Path(
+    os.getenv(
+        "CONTEXT_BUDGET_MANIFEST_PATH", "data/context_budget_manifest.json"
+    )
+)
+if not _manifest_path.is_absolute():
+    _manifest_path = _repo_root / _manifest_path
+RAG_READINESS = evaluate_rag_readiness(
+    requested=_RAG_REQUESTED,
+    manifest_path=_manifest_path,
+    gguf_path=_gguf_path,
+    model=OLLAMA_MODEL,
+    ollama_show=_ollama_show,
+    tokenizer_mode=_prompt_builder.counter.mode,
+)
+RAG_ENABLED = RAG_READINESS.ready
+print(f"[RAG] readiness={RAG_READINESS.reason}")
 RAG_SETTINGS = RAGSettings.from_env()
 _rag_retriever: KnowledgeRetriever | None = None
 
@@ -204,7 +230,7 @@ async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
     if os.getenv("CONTEXT_DIAGNOSTICS", "false").lower() in {"1", "true", "yes"}:
         result["context"] = {
             "counter_mode": budgeted_prompt.counter_mode,
-            "profile_source": budgeted_prompt.profile_source,
+            "profile_source": _PROFILE_SOURCE_CODE,
             "profile_verified": budgeted_prompt.profile_verified,
             "user_tokens": budgeted_prompt.user_tokens,
             "prompt_tokens": budgeted_prompt.final_tokens,
@@ -219,7 +245,12 @@ async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
             "knowledge_results": [
                 knowledge_result_diagnostics(result) for result in knowledge_results
             ],
-            "rag_error": rag_retriever.last_error if rag_retriever else None,
+            "rag_error": (
+                "retrieval_failed"
+                if rag_retriever and rag_retriever.last_error
+                else None
+            ),
+            "rag_readiness_reason": RAG_READINESS.reason,
             "rag_preferred_routes": list(RAG_SETTINGS.preferred_route_scopes),
             "ollama_prompt_eval_count": ollama_result.get("prompt_eval_count"),
             "ollama_eval_count": ollama_result.get("eval_count"),
@@ -274,7 +305,8 @@ async def memory_write(req: MemoryUpdateRequest) -> Dict[str, Any]:
         _memory.set(name=req.name, last_topic=req.last_topic, mood=req.mood)
         return {"status": "ok", "memory": _memory.get()}
     except TypeError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        print(f"[Memory] invalid update: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=422, detail="memory_update_invalid") from e
 
 # -------------------- 雙語回覆 (保留介面) --------------------
 class ReplyBiRequest(BaseModel):
@@ -368,6 +400,7 @@ async def tts(req: TTSRequest) -> Dict[str, Any]:
         raise
     except Exception as e:
         # 最終保底
+        print(f"[TTS] fallback after {type(e).__name__}: {e}")
         try:
             _ensure_voices_dir()
             md5 = hashlib.md5((req.ja or "mock").encode('utf-8')).hexdigest()
@@ -377,10 +410,11 @@ async def tts(req: TTSRequest) -> Dict[str, Any]:
                 "wav_path": str(mock_file),
                 "subtitle_zh": (req.zh or "") if hasattr(req, 'zh') else "",
                 "backend": "mock",
-                "error": f"{type(e).__name__}: {e}"
+                "error": "tts_fallback"
             }
         except Exception as e2:
-            raise HTTPException(status_code=500, detail=f"tts fatal: {type(e2).__name__}: {e2}")
+            print(f"[TTS] fatal: {type(e2).__name__}: {e2}")
+            raise HTTPException(status_code=500, detail="tts_failed") from e2
 
 # -------------------- /say --------------------
 class SayRequest(BaseModel):

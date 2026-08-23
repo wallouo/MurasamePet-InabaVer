@@ -57,6 +57,7 @@ class ApiRagTests(unittest.IsolatedAsyncioTestCase):
                 "language": "ja",
                 "character_tags": '["meguru"]',
                 "relationship_tags": '["senpai"]',
+                "source_path": "C:/private/corpus/meguru.md",
             },
             distance=0.1,
             similarity=0.9,
@@ -102,6 +103,12 @@ class ApiRagTests(unittest.IsolatedAsyncioTestCase):
             prompt.index("ユーザーの発言: めぐるの設定を教えて"),
         )
         self.assertEqual(response["context"]["knowledge_results"][0]["metadata"]["source_url"], "https://example.test/meguru")
+        self.assertNotIn("source_path", response["context"]["knowledge_results"][0]["metadata"])
+        self.assertIn(
+            response["context"]["profile_source"],
+            {"ollama_api_show", "modelfile_fallback"},
+        )
+        self.assertNotIn(":\\", response["context"]["profile_source"])
         self.assertTrue(response["text"])
 
     async def test_alternate_route_prompt_is_explicit(self):
@@ -143,6 +150,7 @@ class ApiRagTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_no_result_keeps_normal_chat_and_empty_diagnostics(self):
         retriever = _EmptyRetriever(self.result)
+        retriever._last_error = "RuntimeError: C:/private/index/chroma.sqlite3"
         with (
             patch.object(api_module, "RAG_ENABLED", True),
             patch.object(api_module, "_rag_retriever", retriever),
@@ -158,6 +166,8 @@ class ApiRagTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("[参考知識", prompt)
         self.assertEqual(response["context"]["knowledge_result_count"], 0)
         self.assertEqual(response["context"]["knowledge_results"], [])
+        self.assertEqual(response["context"]["rag_error"], "retrieval_failed")
+        self.assertNotIn("private", str(response["context"]))
         self.assertTrue(response["text"])
 
     async def test_block_budget_rejection_does_not_break_chat(self):
@@ -237,6 +247,23 @@ class ApiRagTests(unittest.IsolatedAsyncioTestCase):
             await api_module.chat_process(api_module.UserChatRequest(text="こんにちは"))
 
         self.assertEqual(self.retriever.calls, [])
+
+    async def test_unready_backend_ignores_true_request_and_keeps_chat_working(self):
+        with (
+            patch.object(api_module, "RAG_ENABLED", False),
+            patch.object(api_module, "_rag_retriever", self.retriever),
+            patch.object(api_module._memory, "get", return_value={"name": "", "last_topic": "", "mood": ""}),
+            patch.object(api_module._memory, "set"),
+            patch.object(api_module.requests, "post", return_value=_Response()) as post,
+            patch.object(api_module, "tts", new=AsyncMock(return_value={"wav_path": "", "backend": "mock"})),
+        ):
+            response = await api_module.chat_process(
+                api_module.UserChatRequest(text="hello", use_knowledge=True)
+            )
+
+        self.assertEqual(self.retriever.calls, [])
+        self.assertNotIn("[参考知識", post.call_args.kwargs["json"]["messages"][0]["content"])
+        self.assertTrue(response["text"])
 
 
 if __name__ == "__main__":

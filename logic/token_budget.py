@@ -11,6 +11,9 @@ from typing import Any, Mapping, Sequence
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from .context_manifest import parameter_int
+from .prompt_boundaries import USER_MESSAGE_MARKER
+
 
 CONTEXT_WINDOW_TOKENS = 4096
 MAX_OUTPUT_TOKENS = 300
@@ -79,8 +82,8 @@ class PromptProfile:
             source=str(path),
             user_suffix=suffix,
             verified=False,
-            num_ctx=_parameter_int(text, "num_ctx"),
-            num_predict=_parameter_int(text, "num_predict"),
+            num_ctx=parameter_int(text, "num_ctx"),
+            num_predict=parameter_int(text, "num_predict"),
         )
 
     @classmethod
@@ -101,8 +104,8 @@ class PromptProfile:
             source=source,
             user_suffix=suffix,
             verified=True,
-            num_ctx=_parameter_int(parameters, "num_ctx"),
-            num_predict=_parameter_int(parameters, "num_predict"),
+            num_ctx=parameter_int(parameters, "num_ctx"),
+            num_predict=parameter_int(parameters, "num_predict"),
             parameters=parameters,
         )
 
@@ -116,6 +119,23 @@ def load_prompt_profile(
 ) -> PromptProfile:
     """Load the active Ollama profile, falling back to the checked-in model file."""
 
+    return load_prompt_runtime(
+        endpoint=endpoint,
+        model=model,
+        modelfile=modelfile,
+        timeout=timeout,
+    )[0]
+
+
+def load_prompt_runtime(
+    *,
+    endpoint: str | None = None,
+    model: str | None = None,
+    modelfile: Path | None = None,
+    timeout: float = 1.0,
+) -> tuple[PromptProfile, Mapping[str, Any] | None]:
+    """Return the active profile and its authoritative show payload once."""
+
     endpoint = endpoint or os.getenv("OLLAMA_ENDPOINT", "http://127.0.0.1:11434")
     model = model or os.getenv("OLLAMA_MODEL", "meguru")
     try:
@@ -127,20 +147,15 @@ def load_prompt_profile(
         )
         with urlopen(request, timeout=timeout) as response:
             payload = json.loads(response.read().decode("utf-8"))
-        return PromptProfile.from_ollama_response(payload)
+        return PromptProfile.from_ollama_response(payload), payload
     except (OSError, URLError, ValueError, PromptProfileError):
         # Startup should not make ordinary chat dependent on a live Ollama
         # inspection call. The active model is still checked by verification.
-        return PromptProfile.from_modelfile(modelfile)
+        return PromptProfile.from_modelfile(modelfile), None
 
 
 def _default_modelfile_path() -> Path:
     return Path(__file__).resolve().parent.parent / "tools" / "model_training" / "Modelfile"
-
-
-def _parameter_int(text: str, name: str) -> int | None:
-    match = re.search(rf"(?:^|\s){re.escape(name)}\s+(\d+)", text)
-    return int(match.group(1)) if match else None
 
 
 def _is_supported_template(template: str) -> bool:
@@ -286,7 +301,7 @@ class PromptBuilder:
             context_parts.extend(extra_knowledge)
             context_hint = "\n".join(context_parts)
             injected = (
-                f"{context_hint}\n\nユーザーの発言: {user_text}"
+                f"{context_hint}\n\n{USER_MESSAGE_MARKER} {user_text}"
                 if context_hint
                 else user_text
             )

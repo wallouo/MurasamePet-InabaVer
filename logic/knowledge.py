@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from .prompt_boundaries import RAG_BLOCK_CLOSE, RAG_BLOCK_OPEN, USER_MESSAGE_MARKER
+
 
 ROUTE_SCOPES = frozenset(
     {"nene", "meguru", "tsumugi", "touko", "wakana", "common", "global"}
@@ -18,10 +20,23 @@ DOCUMENT_FORMATS = frozenset({"markdown", "json"})
 SOURCE_AUTHORITIES = frozenset(
     {"official", "official_localization", "secondary", "curated", "fan_verified"}
 )
+_CHATML_CONTROL_TOKEN = re.compile(r"<\|[^|\r\n<>]+\|>", re.IGNORECASE)
 
 
 class KnowledgeError(ValueError):
     """A knowledge document or local index cannot be used safely."""
+
+
+def validate_prompt_safe_text(value: str, field: str) -> None:
+    """Reject text that can cross the model-facing prompt boundary."""
+
+    if (
+        _CHATML_CONTROL_TOKEN.search(value)
+        or USER_MESSAGE_MARKER in value
+        or RAG_BLOCK_OPEN in value
+        or RAG_BLOCK_CLOSE in value
+    ):
+        raise KnowledgeError(f"{field} contains a reserved prompt marker")
 
 
 def _required_choice(data: Mapping[str, Any], name: str, choices: set[str]) -> str:
@@ -81,6 +96,8 @@ class KnowledgeDocument:
         if not text:
             raise KnowledgeError(f"{source_path}: missing text/content")
         title = str(data.get("title") or document_id).strip()
+        validate_prompt_safe_text(title, "title")
+        validate_prompt_safe_text(text, "content")
         language = str(data.get("language") or "").strip()
         if not language:
             raise KnowledgeError(f"{source_path}: missing language")
@@ -150,7 +167,10 @@ def _read_markdown(path: Path) -> Mapping[str, Any]:
         if not line or line.startswith("#") or ":" not in line:
             continue
         key, raw = line.split(":", 1)
-        metadata[key.strip()] = _frontmatter_value(raw)
+        key = key.strip()
+        if key == "title":
+            validate_prompt_safe_text(raw.strip(), "title")
+        metadata[key] = _frontmatter_value(raw)
     metadata["text"] = text[match.end() :].strip()
     return metadata
 
