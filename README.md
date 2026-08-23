@@ -36,6 +36,7 @@ A clean, refactored fork of [MurasamePet](https://github.com/LemonQu-GIT/Murasam
 | **Translation** | `qwen3.5:2b` | ZH ↔ EN ↔ JA via `translate.py` |
 | **Speech Synthesis** | VITS (`vits-simple-api`) + Mock fallback | TTS audio generation |
 | **Runtime** | Ollama | Local model serving |
+| **Optional knowledge** | Chroma + `intfloat/multilingual-e5-small` | Local, curated RAG retrieval |
 | **Scripting** | PowerShell (`run_local.ps1`) | One-click environment setup & launch |
 
 ---
@@ -96,6 +97,30 @@ ollama create meguru -f Modelfile
 ollama list
 ```
 
+#### Optional local knowledge retrieval
+
+Phase 3 retrieval is opt-in and remains disabled unless the retained GGUF
+tokenizer has passed the local/Ollama validation gate. The index is local and
+persistent; it complements structured user memory rather than replacing it.
+
+Place curated Markdown or JSON documents under `data/knowledge/`, download
+`intfloat/multilingual-e5-small` into
+`models/embeddings/multilingual-e5-small`, then rebuild the collection:
+
+```powershell
+python tools/ingest_knowledge.py data/knowledge `
+  --chroma-path data/knowledge/chroma `
+  --collection meguru_knowledge `
+  --embedding-model-path models/embeddings/multilingual-e5-small `
+  --replace
+```
+
+Set `RAG_ENABLED=true` only after GGUF-native tokenizer validation, and send
+`{"text":"...", "use_knowledge":true}` to `/chat_process` when retrieval is
+desired. `RAG_MIN_SIMILARITY`, `RAG_MAX_RESULTS`, and `RAG_ROUTE_SCOPE` control
+relevance, result count, and the preferred tie-break route. All route scopes
+remain searchable; alternate-route results are labelled before prompt injection.
+
 #### Vision model
 
 ```powershell
@@ -130,7 +155,7 @@ The script will:
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/chat_process` | POST | Main chat — auto-injects time greeting, holiday hint, user name & last topic |
+| `/chat_process` | POST | Main chat — auto-injects time greeting, holiday hint, user memory, and optional local knowledge (`use_knowledge: true`) |
 | `/pat` | POST | Head-pat interaction with contextual voice response |
 | `/greet` | GET | Time + holiday-aware greeting with TTS |
 | `/tts` | POST | Text-to-Speech (predefined → VITS → mock fallback) |

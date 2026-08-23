@@ -401,6 +401,7 @@ class KnowledgeStore:
         limit: int = 3,
         min_similarity: float = 0.70,
         route_scope: str | None = None,
+        route_scopes: Sequence[str] | None = None,
     ) -> list[KnowledgeSearchResult]:
         """Return relevant chunks, omitting weak nearest-neighbour matches."""
 
@@ -409,7 +410,19 @@ class KnowledgeStore:
             return []
         if not 0.0 <= min_similarity <= 1.0:
             raise KnowledgeError("min_similarity must be between 0 and 1")
-        where = {"route_scope": route_scope} if route_scope else None
+        scopes = tuple(
+            dict.fromkeys(
+                scope.strip()
+                for scope in (route_scopes or ())
+                if isinstance(scope, str) and scope.strip()
+            )
+        )
+        if scopes:
+            where = {"route_scope": scopes[0]} if len(scopes) == 1 else {
+                "route_scope": {"$in": list(scopes)}
+            }
+        else:
+            where = {"route_scope": route_scope} if route_scope else None
         result = self._collection.query(
             query_embeddings=self.embed_queries([query]),
             n_results=limit,

@@ -118,6 +118,26 @@ class TokenBudgetTests(unittest.TestCase):
         self.assertIn("name", result.injected)
         self.assertIn("last_topic", result.injected)
 
+    def test_knowledge_blocks_are_kept_whole_or_omitted(self):
+        builder = PromptBuilder(
+            profile=PromptProfile(system="", source="test"),
+            counter=self.counter,
+            prompt_limit=130,
+            max_user_tokens=768,
+        )
+        result = builder.build(
+            "hello",
+            knowledge_blocks=(
+                "[参考知識]\nsource_authority: curated\ncontent:\n短い根拠\n[参考知識ここまで]",
+                "[参考知識]\nsource_authority: official\ncontent:\n" + ("x" * 200) + "\n[参考知識ここまで]",
+            ),
+        )
+
+        self.assertIn("source_authority: curated", result.injected)
+        self.assertNotIn("source_authority: official", result.injected)
+        self.assertEqual(result.knowledge_included, 1)
+        self.assertEqual(result.knowledge_dropped, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

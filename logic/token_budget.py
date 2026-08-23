@@ -233,6 +233,8 @@ class BudgetedPrompt:
     final_tokens: int
     counter_mode: str
     dropped_sections: tuple[str, ...]
+    knowledge_included: int
+    knowledge_dropped: int
     profile_source: str
     profile_verified: bool
 
@@ -303,9 +305,14 @@ class PromptBuilder:
                 dropped_sections=tuple(dropped),
             )
 
-        # Phase 1 keeps this hook deliberately small. Phase 3 will supply
-        # formatted blocks after retrieval; whole blocks are the only safe unit.
+        knowledge_included = 0
+        knowledge_dropped = 0
+        # Retrieved knowledge is appended only as complete blocks. This keeps
+        # source metadata and content together and lets the model degrade to
+        # ordinary chat when no block fits the remaining budget.
         for block in knowledge_blocks:
+            if not block:
+                continue
             candidate = f"{injected}\n\n{block}"
             candidate_rendered = self.profile.render(candidate)
             candidate_tokens = self.counter.count(candidate_rendered)
@@ -313,6 +320,9 @@ class PromptBuilder:
                 injected = candidate
                 rendered = candidate_rendered
                 base_tokens = candidate_tokens
+                knowledge_included += 1
+            else:
+                knowledge_dropped += 1
 
         return BudgetedPrompt(
             injected=injected,
@@ -322,6 +332,8 @@ class PromptBuilder:
             final_tokens=base_tokens,
             counter_mode=self.counter.mode,
             dropped_sections=tuple(dropped),
+            knowledge_included=knowledge_included,
+            knowledge_dropped=knowledge_dropped,
             profile_source=self.profile.source,
             profile_verified=self.profile.verified,
         )
