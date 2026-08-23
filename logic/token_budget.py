@@ -276,8 +276,14 @@ class PromptBuilder:
         selected = {section.name: section for section in sections if section.content}
         dropped: list[str] = []
 
-        def render_selected() -> tuple[str, str, int]:
+        def render_selected(
+            extra_knowledge: Sequence[str] = (),
+        ) -> tuple[str, str, int]:
+            # Keep every retrieved block in the context section.  The user
+            # utterance is deliberately rendered last so retrieved text can
+            # never become the final semantic instruction in the prompt.
             context_parts = [section.content for section in selected.values()]
+            context_parts.extend(extra_knowledge)
             context_hint = "\n".join(context_parts)
             injected = (
                 f"{context_hint}\n\nユーザーの発言: {user_text}"
@@ -307,19 +313,21 @@ class PromptBuilder:
 
         knowledge_included = 0
         knowledge_dropped = 0
-        # Retrieved knowledge is appended only as complete blocks. This keeps
-        # source metadata and content together and lets the model degrade to
-        # ordinary chat when no block fits the remaining budget.
+        included_blocks: list[str] = []
+        # Retrieved knowledge is added only as complete blocks before the user
+        # marker. This keeps each source self-contained and lets ordinary chat
+        # continue when no block fits the remaining budget.
         for block in knowledge_blocks:
             if not block:
                 continue
-            candidate = f"{injected}\n\n{block}"
-            candidate_rendered = self.profile.render(candidate)
-            candidate_tokens = self.counter.count(candidate_rendered)
+            candidate_blocks = [*included_blocks, block]
+            candidate, candidate_rendered, candidate_tokens = render_selected(
+                candidate_blocks
+            )
             if candidate_tokens <= self.prompt_limit:
                 injected = candidate
                 rendered = candidate_rendered
-                base_tokens = candidate_tokens
+                included_blocks.append(block)
                 knowledge_included += 1
             else:
                 knowledge_dropped += 1
@@ -329,7 +337,7 @@ class PromptBuilder:
             rendered=rendered,
             user_tokens=user_tokens,
             base_tokens=base_tokens,
-            final_tokens=base_tokens,
+            final_tokens=self.counter.count(rendered),
             counter_mode=self.counter.mode,
             dropped_sections=tuple(dropped),
             knowledge_included=knowledge_included,

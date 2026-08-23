@@ -33,7 +33,12 @@ from logic.token_budget import (
     current_context_sections,
     load_prompt_profile,
 )
-from logic.rag import KnowledgeRetriever, RAGSettings, format_knowledge_blocks
+from logic.rag import (
+    KnowledgeRetriever,
+    RAGSettings,
+    format_knowledge_blocks,
+    knowledge_result_diagnostics,
+)
 _memory = MemoryManager()   # singleton，啟動時初始化一次
 
 # -------------------- 環境變數 --------------------
@@ -93,16 +98,16 @@ class UserChatRequest(BaseModel):
 
 def _retrieve_knowledge(
     user_text: str,
-) -> tuple[tuple[str, ...], KnowledgeRetriever | None]:
+) -> tuple[list[Any], tuple[str, ...], KnowledgeRetriever | None]:
     """Retrieve lazily; an unavailable local index must never break chat."""
 
     global _rag_retriever
     if not RAG_ENABLED:
-        return (), None
+        return [], (), None
     if _rag_retriever is None:
         _rag_retriever = KnowledgeRetriever(RAG_SETTINGS)
     results = _rag_retriever.search(user_text)
-    return format_knowledge_blocks(results), _rag_retriever
+    return results, format_knowledge_blocks(results), _rag_retriever
 
 @app.post("/chat_process")
 async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
@@ -116,10 +121,13 @@ async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
     # 2. 建立 context_hint
     holiday_hint = get_holiday_hint()
     time_info = get_time_greeting()
+    knowledge_results: list[Any] = []
     knowledge_blocks: tuple[str, ...] = ()
     rag_retriever: KnowledgeRetriever | None = None
     if req.use_knowledge:
-        knowledge_blocks, rag_retriever = _retrieve_knowledge(user_text)
+        knowledge_results, knowledge_blocks, rag_retriever = _retrieve_knowledge(
+            user_text
+        )
     try:
         budgeted_prompt = _prompt_builder.build(
             user_text,
@@ -207,7 +215,10 @@ async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
             "dropped_sections": list(budgeted_prompt.dropped_sections),
             "knowledge_included": budgeted_prompt.knowledge_included,
             "knowledge_dropped": budgeted_prompt.knowledge_dropped,
-            "knowledge_results": len(knowledge_blocks),
+            "knowledge_result_count": len(knowledge_results),
+            "knowledge_results": [
+                knowledge_result_diagnostics(result) for result in knowledge_results
+            ],
             "rag_error": rag_retriever.last_error if rag_retriever else None,
             "rag_preferred_routes": list(RAG_SETTINGS.preferred_route_scopes),
             "ollama_prompt_eval_count": ollama_result.get("prompt_eval_count"),

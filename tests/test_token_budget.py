@@ -128,15 +128,31 @@ class TokenBudgetTests(unittest.TestCase):
         result = builder.build(
             "hello",
             knowledge_blocks=(
-                "[参考知識]\nsource_authority: curated\ncontent:\n短い根拠\n[参考知識ここまで]",
-                "[参考知識]\nsource_authority: official\ncontent:\n" + ("x" * 200) + "\n[参考知識ここまで]",
+                "[参考知識]\ntitle: short\ncontent:\n短い根拠\n[参考知識ここまで]",
+                "[参考知識]\ntitle: long\ncontent:\n" + ("x" * 200) + "\n[参考知識ここまで]",
             ),
         )
 
-        self.assertIn("source_authority: curated", result.injected)
-        self.assertNotIn("source_authority: official", result.injected)
+        self.assertIn("title: short", result.injected)
+        self.assertNotIn("title: long", result.injected)
         self.assertEqual(result.knowledge_included, 1)
         self.assertEqual(result.knowledge_dropped, 1)
+
+    def test_knowledge_blocks_precede_final_user_message(self):
+        builder = PromptBuilder(
+            profile=PromptProfile(system="", source="test"),
+            counter=self.counter,
+            prompt_limit=500,
+        )
+        result = builder.build(
+            "hello",
+            knowledge_blocks=("BLOCK_ONE", "BLOCK_TWO"),
+        )
+
+        marker = "ユーザーの発言: hello"
+        self.assertLess(result.injected.index("BLOCK_ONE"), result.injected.index(marker))
+        self.assertLess(result.injected.index("BLOCK_TWO"), result.injected.index(marker))
+        self.assertTrue(result.injected.rstrip().endswith(marker))
 
 
 if __name__ == "__main__":

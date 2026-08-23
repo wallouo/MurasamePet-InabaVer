@@ -2,7 +2,12 @@ import unittest
 from dataclasses import replace
 
 from logic.knowledge import KnowledgeSearchResult, ROUTE_SCOPES
-from logic.rag import KnowledgeRetriever, RAGSettings, format_knowledge_block
+from logic.rag import (
+    KnowledgeRetriever,
+    RAGSettings,
+    format_knowledge_block,
+    knowledge_result_diagnostics,
+)
 
 
 class _FakeStore:
@@ -43,15 +48,33 @@ class RagTests(unittest.TestCase):
             similarity=0.9,
         )
 
-    def test_format_preserves_grounding_metadata_and_content(self):
+    def test_prompt_block_contains_only_grounding_fields(self):
         block = format_knowledge_block(self.result)
 
-        self.assertIn("document_id: meguru-profile", block)
-        self.assertIn("source_authority: curated", block)
-        self.assertIn("character_tags: meguru, protagonist", block)
-        self.assertIn("relationship_tags: senpai", block)
+        self.assertIn("title: Meguru profile", block)
+        self.assertIn("route_scope: meguru", block)
+        self.assertIn("perspective_status: lived", block)
         self.assertIn("因幡めぐるはゲームが好き", block)
         self.assertIn("参考知識ここまで", block)
+        for forbidden in (
+            "document_id:",
+            "source_url:",
+            "document_format:",
+            "source_authority:",
+            "language:",
+            "character_tags:",
+            "relationship_tags:",
+            "similarity:",
+        ):
+            self.assertNotIn(forbidden, block)
+
+    def test_diagnostics_retain_full_metadata_and_scores(self):
+        diagnostics = knowledge_result_diagnostics(self.result)
+
+        self.assertEqual(diagnostics["chunk_id"], "chunk-1")
+        self.assertEqual(diagnostics["similarity"], 0.9)
+        self.assertEqual(diagnostics["metadata"]["source_url"], "https://example.test/meguru")
+        self.assertEqual(diagnostics["metadata"]["character_tags"], ["meguru", "protagonist"])
 
     def test_retriever_passes_route_and_relevance_settings(self):
         settings = RAGSettings(
@@ -114,7 +137,7 @@ class RagTests(unittest.TestCase):
 
         self.assertIn("perspective_status: alternate", block)
         self.assertIn("alternate-route knowledge", block)
-        self.assertIn("do not present as Meguru and Senpai's lived history", block)
+        self.assertIn("do not present it as Meguru and Senpai's lived history", block)
 
     def test_retriever_degrades_to_empty_results_on_store_failure(self):
         class BrokenStore:
