@@ -99,7 +99,7 @@ ollama list
 
 #### Optional local knowledge retrieval
 
-Phase 3 retrieval is opt-in and remains disabled unless the retained GGUF
+Local retrieval is opt-in and remains disabled unless the retained GGUF
 tokenizer has passed the local/Ollama validation gate. The index is local and
 persistent; it complements structured user memory rather than replacing it.
 
@@ -120,6 +120,36 @@ Set `RAG_ENABLED=true` only after GGUF-native tokenizer validation, and send
 desired. `RAG_MIN_SIMILARITY`, `RAG_MAX_RESULTS`, and `RAG_ROUTE_SCOPE` control
 relevance, result count, and the preferred tie-break route. All route scopes
 remain searchable; alternate-route results are labelled before prompt injection.
+
+#### Local release verification
+
+Run these checks after changing the GGUF, Ollama Modelfile, embedding model, or
+knowledge corpus. The first command writes the ignored local manifest at
+`data/context_budget_manifest.json`; it records the GGUF/Ollama hashes, exact
+tokenizer mode, Ollama version, and multilingual `prompt_eval_count` results.
+
+```powershell
+python tools/verify_context_budget.py `
+  --gguf tools/model_training/meguru_q4_k_m.gguf `
+  --manifest data/context_budget_manifest.json `
+  --model meguru
+
+python tools/ingest_knowledge.py data/knowledge/examples `
+  --chroma-path data/knowledge/chroma `
+  --collection meguru_knowledge `
+  --embedding-model-path models/embeddings/multilingual-e5-small `
+  --replace
+
+python tools/check_knowledge_search.py `
+  --chroma-path data/knowledge/chroma `
+  --collection meguru_knowledge `
+  --embedding-model-path models/embeddings/multilingual-e5-small
+
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+RAG remains off when exact GGUF-native counting is unavailable or validation
+fails; ordinary chat must continue in that state.
 
 #### Vision model
 
