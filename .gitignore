@@ -11,6 +11,21 @@ __pycache__/
 *.pyd
 .Python
 
+# Test, evaluation, and tool caches
+.eval_results/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Python build artefacts
+build/
+dist/
+*.egg-info/
+
 # Generated audio files
 voices/
 *.wav
@@ -30,6 +45,8 @@ desktop.ini
 
 # Environment variables (contains sensitive data)
 .env
+.env.*
+!.env.example
 
 # Temporary files
 *.log
@@ -38,18 +55,24 @@ temp/
 
 # Large model files
 *.pth
+*.pt
 *.onnx
 *.bin
+*.gguf
+*.safetensors
+*.ckpt
+models/tokenizers/
+models/embeddings/
+
+# Local RAG runtime state
+data/knowledge/chroma/
+data/context_budget_manifest.json
 
 # Assets
 assets/audio/
-__pycache__/api.cpython-39.pyc
-__pycache__/api.cpython-39.pyc
-__pycache__/api.cpython-39.pyc
 tools/model_training/config_v1_baseline_bf16.yaml
 tools/model_training/config_v2_mlp_persona_bf16.yaml
 tools/model_training/config_v4_anti_loop_bf16.yaml
 tools/model_training/config_v3_quant_safe_bf16.yaml
-.env
 *.approval_log.json
 memory.json
