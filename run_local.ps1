@@ -1,6 +1,9 @@
 # 因幡巡桌寵啟動腳本 - 完整版（容錯加強 + Ollama 預熱）
 param()
 
+$ErrorActionPreference = "Stop"
+Set-Location -LiteralPath $PSScriptRoot
+
 # ===== Ollama Parallelism Config =====
 $env:OLLAMA_NUM_PARALLEL = 3
 $env:OLLAMA_MAX_LOADED_MODELS = 3
@@ -47,19 +50,36 @@ Write-Host " OK" -ForegroundColor Green
 
 Write-Host "  Checking dependencies..." -NoNewline
 
-# 嘗試升級 pip，失敗則跳過
-$ErrorActionPreference = "SilentlyContinue"
-pip install --upgrade pip -q 2>$null
-$ErrorActionPreference = "Stop"
-
-# 安裝依賴
-pip install --no-warn-script-location fastapi uvicorn requests PyQt5 pydantic -q
-
-if ($LASTEXITCODE -eq 0) {
-    Write-Host " OK" -ForegroundColor Green
+# Canonical dependency install. The explicit package-specific binary policy
+# prevents llama-cpp-python from silently falling back to a local source build.
+$requirementsHash = (Get-FileHash -Algorithm SHA256 -LiteralPath "requirements.txt").Hash
+$constraintsHash = (Get-FileHash -Algorithm SHA256 -LiteralPath "constraints.txt").Hash
+$dependencyFingerprint = "$requirementsHash`n$constraintsHash"
+$fingerprintPath = ".venv/dependencies.sha256"
+$installedFingerprint = if (Test-Path -LiteralPath $fingerprintPath) {
+    (Get-Content -LiteralPath $fingerprintPath -Raw).Trim()
 } else {
-    Write-Host " WARNING (some packages may already be installed)" -ForegroundColor Yellow
+    ""
 }
+if ($installedFingerprint -ne $dependencyFingerprint) {
+    python -m pip install --upgrade pip -q
+    if ($LASTEXITCODE -ne 0) {
+        throw "Pip upgrade failed. Backend was not started."
+    }
+    python -m pip install `
+        --extra-index-url "https://abetlen.github.io/llama-cpp-python/whl/cpu/" `
+        --only-binary=llama-cpp-python `
+        --report ".venv/install-report.json" `
+        --requirement requirements.txt `
+        --constraint constraints.txt `
+        --no-warn-script-location `
+        -q
+    if ($LASTEXITCODE -ne 0) {
+        throw "Dependency installation failed. Backend was not started."
+    }
+    Set-Content -LiteralPath $fingerprintPath -Value $dependencyFingerprint -NoNewline
+}
+Write-Host " OK" -ForegroundColor Green
 
 $env:PYTHONPATH = $PSScriptRoot
 
@@ -125,7 +145,7 @@ if (Test-Port $API_PORT) {
     Write-Host "  Backend already running (port $API_PORT)" -ForegroundColor Yellow
 } else {
     Write-Host "  Starting FastAPI on port $API_PORT..." -NoNewline
-    Start-Process -FilePath "python" -ArgumentList "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "$API_PORT" -WindowStyle Normal
+    Start-Process -FilePath "python" -ArgumentList "-m", "uvicorn", "api:app", "--host", "127.0.0.1", "--port", "$API_PORT" -WindowStyle Normal
     Start-Sleep -Seconds 3
 
     if (Test-Port $API_PORT) {

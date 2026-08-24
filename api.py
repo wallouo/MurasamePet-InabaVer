@@ -18,17 +18,69 @@ import requests
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
+
+from logic.environment import load_project_env
+
+load_project_env(__file__)
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from translate import translate   # ← 把 translation 改成 translate
 from logic.memory import MemoryManager
 from logic.calendar_event import get_holiday_hint
 from logic.time_greeter import get_time_greeting
+from logic.token_budget import (
+    MAX_OUTPUT_TOKENS,
+    MAX_PROMPT_TOKENS,
+    SAFETY_MARGIN_TOKENS,
+    PromptBudgetError,
+    PromptBuilder,
+    current_context_sections,
+    load_prompt_runtime,
+)
+from logic.context_manifest import evaluate_rag_readiness
+from logic.knowledge import (
+    E5_EMBEDDING_DIMENSION,
+    E5_MODEL_ID,
+    KNOWLEDGE_CHUNK_SCHEMA_VERSION,
+)
+from logic.knowledge_gate import (
+    GateRuntimeConfig,
+    classify_query,
+    evaluate_gate_readiness,
+)
+from logic.rag import (
+    KnowledgeRetriever,
+    RAGSettings,
+    format_knowledge_blocks,
+    knowledge_result_diagnostics,
+)
 _memory = MemoryManager()   # singleton，啟動時初始化一次
 
 # -------------------- 環境變數 --------------------
-OLLAMA_ENDPOINT = "http://127.0.0.1:11434"
-OLLAMA_MODEL = "meguru"
+OLLAMA_ENDPOINT = os.getenv("OLLAMA_ENDPOINT", "http://127.0.0.1:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "meguru")
+_runtime_profile, _ollama_show = load_prompt_runtime(
+    endpoint=OLLAMA_ENDPOINT, model=OLLAMA_MODEL
+)
+_PROFILE_SOURCE_CODE = (
+    "ollama_api_show" if _ollama_show is not None else "modelfile_fallback"
+)
+OLLAMA_NUM_CTX = _runtime_profile.num_ctx or int(
+    os.getenv("MODEL_CONTEXT_TOKENS", "4096")
+)
+OLLAMA_NUM_PREDICT = _runtime_profile.num_predict or int(
+    os.getenv("CHAT_MAX_OUTPUT_TOKENS", str(MAX_OUTPUT_TOKENS))
+)
+_default_prompt_limit = max(
+    0, OLLAMA_NUM_CTX - OLLAMA_NUM_PREDICT - SAFETY_MARGIN_TOKENS
+)
+CONTEXT_PROMPT_LIMIT = min(
+    int(os.getenv("CHAT_MAX_PROMPT_TOKENS", str(MAX_PROMPT_TOKENS))),
+    _default_prompt_limit,
+)
+CHAT_MAX_USER_TOKENS = int(os.getenv("CHAT_MAX_USER_TOKENS", "768"))
+_RAG_REQUESTED = os.getenv("RAG_ENABLED", "false").lower() in {"1", "true", "yes"}
 
 VITS_ENDPOINT = os.getenv('VITS_ENDPOINT', 'http://127.0.0.1:23456')
 VITS_SPEAKER_ID = int(os.getenv('VITS_SPEAKER_ID', '88'))
@@ -43,10 +95,88 @@ voices_dir.mkdir(exist_ok=True)
 
 # -------------------- 應用 --------------------
 app = FastAPI()
+_prompt_builder = PromptBuilder(
+    profile=_runtime_profile,
+    prompt_limit=CONTEXT_PROMPT_LIMIT,
+    max_user_tokens=CHAT_MAX_USER_TOKENS,
+)
+_repo_root = Path(__file__).resolve().parent
+_gguf_path = Path(
+    os.getenv("MEGURU_GGUF_PATH", "tools/model_training/meguru_q4_k_m.gguf")
+)
+if not _gguf_path.is_absolute():
+    _gguf_path = _repo_root / _gguf_path
+_manifest_path = Path(
+    os.getenv(
+        "CONTEXT_BUDGET_MANIFEST_PATH", "data/context_budget_manifest.json"
+    )
+)
+if not _manifest_path.is_absolute():
+    _manifest_path = _repo_root / _manifest_path
+_CONTEXT_RAG_READINESS = evaluate_rag_readiness(
+    requested=_RAG_REQUESTED,
+    manifest_path=_manifest_path,
+    gguf_path=_gguf_path,
+    model=OLLAMA_MODEL,
+    ollama_show=_ollama_show,
+    tokenizer_mode=_prompt_builder.counter.mode,
+)
+RAG_SETTINGS = RAGSettings.from_env()
+
+
+def _project_path(value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else _repo_root / path
+
+
+if _CONTEXT_RAG_READINESS.ready:
+    RAG_READINESS = evaluate_gate_readiness(
+        GateRuntimeConfig(
+            inventory_path=_project_path(RAG_SETTINGS.gate_inventory_path),
+            corpus_path=_project_path(RAG_SETTINGS.corpus_path),
+            repo_root=_repo_root,
+            chroma_path=_project_path(RAG_SETTINGS.chroma_path),
+            collection_name=RAG_SETTINGS.collection_name,
+            embedding_model_id=E5_MODEL_ID,
+            embedding_dimension=E5_EMBEDDING_DIMENSION,
+            chunk_schema_version=KNOWLEDGE_CHUNK_SCHEMA_VERSION,
+            chunk_target_chars=RAG_SETTINGS.chunk_target_chars,
+            chunk_overlap_chars=RAG_SETTINGS.chunk_overlap_chars,
+        )
+    )
+else:
+    RAG_READINESS = _CONTEXT_RAG_READINESS
+RAG_ENABLED = RAG_READINESS.ready
+_knowledge_gate = getattr(RAG_READINESS, "gate", None)
+print(f"[RAG] readiness={RAG_READINESS.reason}")
+_rag_retriever: KnowledgeRetriever | None = None
 
 class UserChatRequest(BaseModel):
     text: str
     user_id: str = "master"
+    use_knowledge: bool = False
+
+
+def _retrieve_knowledge(
+    user_text: str,
+) -> tuple[list[Any], tuple[str, ...], KnowledgeRetriever | None, str | None]:
+    """Retrieve lazily; an unavailable local index must never break chat."""
+
+    global _rag_retriever
+    if not RAG_ENABLED or _knowledge_gate is None:
+        return [], (), None, None
+    gate_decision = classify_query(user_text, _knowledge_gate)
+    if gate_decision.decision != "allow_retrieval":
+        return [], (), None, gate_decision.decision
+    if _rag_retriever is None:
+        _rag_retriever = KnowledgeRetriever(RAG_SETTINGS)
+    results = _rag_retriever.search(user_text)
+    return (
+        results,
+        format_knowledge_blocks(results),
+        _rag_retriever,
+        gate_decision.decision,
+    )
 
 @app.post("/chat_process")
 async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
@@ -58,35 +188,59 @@ async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
     last_topic = mem.get("last_topic", "").strip()
 
     # 2. 建立 context_hint
-    context_parts: list[str] = []
     holiday_hint = get_holiday_hint()
-    if holiday_hint:
-        context_parts.append(f"[今日のイベント: {holiday_hint}]")
     time_info = get_time_greeting()
-    context_parts.append(f"[現在の時間帯: {time_info['text']}]")
-    if user_name:
-        context_parts.append(f"[ユーザー名: {user_name}]")
-    if last_topic:
-        context_parts.append(f"[前回の話題: {last_topic}]")
-    context_hint = "\n".join(context_parts)
+    knowledge_results: list[Any] = []
+    knowledge_blocks: tuple[str, ...] = ()
+    rag_retriever: KnowledgeRetriever | None = None
+    rag_gate_decision: str | None = None
+    if req.use_knowledge:
+        (
+            knowledge_results,
+            knowledge_blocks,
+            rag_retriever,
+            rag_gate_decision,
+        ) = _retrieve_knowledge(user_text)
+    try:
+        budgeted_prompt = _prompt_builder.build(
+            user_text,
+            current_context_sections(
+                holiday_hint=holiday_hint,
+                time_text=time_info["text"],
+                user_name=user_name,
+                last_topic=last_topic,
+            ),
+            knowledge_blocks=knowledge_blocks,
+        )
+    except PromptBudgetError as exc:
+        raise HTTPException(
+            status_code=413,
+            detail={"code": exc.code, **exc.details},
+        ) from exc
 
     # 3. 組 prompt
-    injected = f"{context_hint}\n\nユーザーの発言: {user_text}" if context_hint else user_text
+    injected = budgeted_prompt.injected
     ollama_payload = {
         "model":   OLLAMA_MODEL,
         "messages": [{"role": "user", "content": injected}],
         "stream":  False,
-        "options": {"num_gpu": -1},
+        "options": {
+            "num_gpu": -1,
+            "num_ctx": OLLAMA_NUM_CTX,
+            "num_predict": OLLAMA_NUM_PREDICT,
+        },
     }
 
     print(f"[聊天] 使用者: {user_text}")
 
     # 4. 呼叫 Ollama
     ai_reply_text = ""
+    ollama_result: Dict[str, Any] = {}
     try:
         resp = requests.post(f"{OLLAMA_ENDPOINT}/api/chat", json=ollama_payload, timeout=60.0)
         resp.raise_for_status()
-        ai_reply_text = resp.json().get("message", {}).get("content", "").strip()
+        ollama_result = resp.json()
+        ai_reply_text = ollama_result.get("message", {}).get("content", "").strip()
 
         temp = ai_reply_text
         for w in ["ciallo", "Ciallo", "CIALLO"]:
@@ -113,13 +267,45 @@ async def chat_process(req: UserChatRequest) -> Dict[str, Any]:
     # 7. TTS
     tts_result = await tts(TTSRequest(ja=ai_reply_text, zh=ai_reply_text))
 
-    return {
+    result = {
         "text":        ai_reply_text,
         "subtitle_zh": ai_reply_text,
         "wav_path":    tts_result["wav_path"],
         "emotion":     emotion,
         "backend":     tts_result["backend"],
     }
+    if os.getenv("CONTEXT_DIAGNOSTICS", "false").lower() in {"1", "true", "yes"}:
+        result["context"] = {
+            "counter_mode": budgeted_prompt.counter_mode,
+            "profile_source": _PROFILE_SOURCE_CODE,
+            "profile_verified": budgeted_prompt.profile_verified,
+            "user_tokens": budgeted_prompt.user_tokens,
+            "prompt_tokens": budgeted_prompt.final_tokens,
+            "prompt_limit_tokens": CONTEXT_PROMPT_LIMIT,
+            "context_limit_tokens": OLLAMA_NUM_CTX,
+            "max_output_tokens": OLLAMA_NUM_PREDICT,
+            "safety_tokens": max(0, OLLAMA_NUM_CTX - CONTEXT_PROMPT_LIMIT - OLLAMA_NUM_PREDICT),
+            "dropped_sections": list(budgeted_prompt.dropped_sections),
+            "knowledge_included": budgeted_prompt.knowledge_included,
+            "knowledge_dropped": budgeted_prompt.knowledge_dropped,
+            "knowledge_result_count": len(knowledge_results),
+            "knowledge_results": [
+                knowledge_result_diagnostics(result) for result in knowledge_results
+            ],
+            "rag_error": (
+                "retrieval_failed"
+                if rag_retriever and rag_retriever.last_error
+                else None
+            ),
+            "rag_readiness_reason": RAG_READINESS.reason,
+            "rag_gate_decision": rag_gate_decision,
+            "rag_preferred_routes": list(RAG_SETTINGS.preferred_route_scopes),
+            "ollama_prompt_eval_count": ollama_result.get("prompt_eval_count"),
+            "ollama_eval_count": ollama_result.get("eval_count"),
+            "ollama_done_reason": ollama_result.get("done_reason"),
+            "rag_enabled": RAG_ENABLED,
+        }
+    return result
 
 
 def _infer_emotion(text: str, fallback: str = "neutral") -> str:
@@ -167,7 +353,8 @@ async def memory_write(req: MemoryUpdateRequest) -> Dict[str, Any]:
         _memory.set(name=req.name, last_topic=req.last_topic, mood=req.mood)
         return {"status": "ok", "memory": _memory.get()}
     except TypeError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        print(f"[Memory] invalid update: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=422, detail="memory_update_invalid") from e
 
 # -------------------- 雙語回覆 (保留介面) --------------------
 class ReplyBiRequest(BaseModel):
@@ -261,6 +448,7 @@ async def tts(req: TTSRequest) -> Dict[str, Any]:
         raise
     except Exception as e:
         # 最終保底
+        print(f"[TTS] fallback after {type(e).__name__}: {e}")
         try:
             _ensure_voices_dir()
             md5 = hashlib.md5((req.ja or "mock").encode('utf-8')).hexdigest()
@@ -270,10 +458,11 @@ async def tts(req: TTSRequest) -> Dict[str, Any]:
                 "wav_path": str(mock_file),
                 "subtitle_zh": (req.zh or "") if hasattr(req, 'zh') else "",
                 "backend": "mock",
-                "error": f"{type(e).__name__}: {e}"
+                "error": "tts_fallback"
             }
         except Exception as e2:
-            raise HTTPException(status_code=500, detail=f"tts fatal: {type(e2).__name__}: {e2}")
+            print(f"[TTS] fatal: {type(e2).__name__}: {e2}")
+            raise HTTPException(status_code=500, detail="tts_failed") from e2
 
 # -------------------- /say --------------------
 class SayRequest(BaseModel):

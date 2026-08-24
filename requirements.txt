@@ -12,11 +12,20 @@ Pillow>=10.0.0
 
 # Network & API
 requests>=2.31.0
+python-dotenv>=1.0.0
 
 # Backend API Server (FastAPI)
 fastapi>=0.100.0
 uvicorn>=0.23.0
 pydantic>=2.0.0
+
+# Exact prompt accounting from the retained GGUF.  run_local.ps1 installs this
+# from llama-cpp-python's official CPU wheel index and forbids source builds.
+llama-cpp-python==0.3.35
+
+# Phase 2 local RAG indexing (the embedding model itself is supplied locally)
+chromadb>=0.5.0
+sentence-transformers>=3.0.0
 
 # Audio & TTS (System dependent, may need ffmpeg on host)
 # Note: Audio playback in frontend uses QtMultimedia

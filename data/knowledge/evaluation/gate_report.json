@@ -1,0 +1,1741 @@
+{
+  "schema_version": 1,
+  "corpus_version": "cfe2a18b27103818a45db11c06b86444e80a51a87677ee06be61b2a3f17e8302",
+  "inventory": {
+    "metadata_schema": {
+      "entity": "Stable entity ID, aliases present in or directly derived from curated source metadata, and evidence-backed supported_facts.",
+      "supported_fact": "Fact key mapped to document IDs plus corpus-verbatim evidence excerpts. The loader verifies each excerpt; tags alone are not evidence.",
+      "domain": "Work/world identifier with multilingual aliases and optional evidence-backed terminology facts.",
+      "relationship": "Exact entity-ID pair or set with evidence-backed relationship facts; entity tags alone do not create an edge.",
+      "fact_recognizer": "Small multilingual phrase list used only to infer a candidate fact key; recognition never implies corpus support."
+    },
+    "entities": [
+      {
+        "id": "meguru",
+        "type": "character",
+        "domain_id": "sanoba_witch",
+        "aliases": [
+          "因幡めぐる",
+          "めぐる",
+          "Meguru Inaba",
+          "Meguru"
+        ],
+        "supported_facts": {
+          "identity_profile": {
+            "evidence": [
+              {
+                "document_id": "sanoba-witch-meguru-official",
+                "excerpt": "主要キャラクターの一人として「因幡めぐる」が掲載されている"
+              },
+              {
+                "document_id": "sanoba-witch-meguru-localization",
+                "excerpt": "因幡めぐる（Meguru Inaba）"
+              }
+            ],
+            "route_scopes": [
+              "meguru"
+            ]
+          },
+          "character_song": {
+            "evidence": [
+              {
+                "document_id": "sanoba-witch-meguru-song-official",
+                "excerpt": "因幡めぐる「リアルフレンド」"
+              }
+            ],
+            "route_scopes": [
+              "meguru"
+            ]
+          }
+        }
+      }
+    ],
+    "domains": [
+      {
+        "id": "sanoba_witch",
+        "aliases": [
+          "サノバウィッチ",
+          "魔女的夜宴",
+          "Sanoba Witch",
+          "sanoba-witch"
+        ],
+        "supported_facts": {}
+      }
+    ],
+    "relationships": [],
+    "maintenance": [
+      "After corpus changes, update corpus_version and review every entity alias and supported fact against source text.",
+      "The inventory corpus_path must resolve to the exact configured RAG_CORPUS_PATH; an example inventory must not validate a private corpus.",
+      "Add a fact key only with at least one evidence document ID; do not infer support from character or relationship tags.",
+      "Add a few multilingual query phrases only when a supported fact or observed development-case miss requires them.",
+      "Rerun development, held-out, and dense calibration after every inventory or corpus change."
+    ]
+  },
+  "heldout_separation": {
+    "cases": 24,
+    "structural_cases": 12
+  },
+  "existing_positive_recall": 1.0,
+  "existing_positive_count": 4,
+  "existing_hard_negative_count": 12,
+  "existing_hard_negative_acceptance_count": 0,
+  "suite_metrics": {
+    "existing": {
+      "total": 16,
+      "passed": 16,
+      "allowed": 4,
+      "abstained": 12
+    },
+    "development": {
+      "total": 36,
+      "passed": 36,
+      "allowed": 8,
+      "abstained": 28
+    },
+    "heldout": {
+      "total": 24,
+      "passed": 24,
+      "allowed": 4,
+      "abstained": 20
+    }
+  },
+  "per_language": {
+    "ja": {
+      "total": 19,
+      "passed": 19,
+      "allowed": 4,
+      "abstained": 15
+    },
+    "zh-Hant": {
+      "total": 19,
+      "passed": 19,
+      "allowed": 4,
+      "abstained": 15
+    },
+    "en": {
+      "total": 19,
+      "passed": 19,
+      "allowed": 4,
+      "abstained": 15
+    },
+    "mixed": {
+      "total": 1,
+      "passed": 1,
+      "allowed": 1,
+      "abstained": 0
+    },
+    "zh-Hans": {
+      "total": 18,
+      "passed": 18,
+      "allowed": 3,
+      "abstained": 15
+    }
+  },
+  "cannot_confidently_classify": [
+    "ambiguous_ja",
+    "ambiguous_zh_hant",
+    "ambiguous_zh_hans",
+    "ambiguous_en",
+    "unknown_entity_ja",
+    "unknown_entity_zh_hant",
+    "unknown_entity_zh_hans",
+    "unknown_entity_en",
+    "heldout_unknown_entity_ja",
+    "heldout_ambiguous_ja",
+    "heldout_unknown_entity_zh_hant",
+    "heldout_ambiguous_zh_hant",
+    "heldout_unknown_entity_zh_hans",
+    "heldout_ambiguous_zh_hans",
+    "heldout_unknown_entity_en",
+    "heldout_ambiguous_en"
+  ],
+  "all_expectations_passed": true,
+  "acceptance_bar_passed": true,
+  "recommendation": "A",
+  "cases": [
+    {
+      "source": "existing",
+      "name": "japanese_question",
+      "query": "因幡めぐるは公式サイトでどのように紹介されていますか？",
+      "language": "ja",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "traditional_chinese_question",
+      "query": "《魔女的夜宴》中因幡めぐる是谁？",
+      "language": "zh-Hant",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "english_question",
+      "query": "Who is Meguru Inaba?",
+      "language": "en",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "character_aliases",
+      "query": "因幡めぐる / Meguru Inaba",
+      "language": "mixed",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_ja_weather",
+      "query": "今日の天気を教えて。",
+      "language": "ja",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_ja_bread",
+      "query": "食パンの焼き方を教えて。",
+      "language": "ja",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_ja_food",
+      "query": "因幡めぐるの好きな食べ物は何？",
+      "language": "ja",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "favorite_food",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "favorite_food",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_zh_hant_weather",
+      "query": "今天倫敦的天氣如何？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_zh_hant_bread",
+      "query": "麵包要怎麼烤？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_zh_hant_birthday",
+      "query": "因幡めぐる的生日是幾月幾日？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "birthday",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "birthday",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_zh_hans_weather",
+      "query": "今天伦敦的天气怎么样？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_zh_hans_bicycle",
+      "query": "怎么修理自行车？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_zh_hans_color",
+      "query": "因幡めぐる最喜欢的颜色是什么？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "favorite_color",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "favorite_color",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_en_weather",
+      "query": "What is the weather today?",
+      "language": "en",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_en_bread",
+      "query": "How do I bake bread?",
+      "language": "en",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "existing",
+      "name": "negative_en_food",
+      "query": "What is Meguru Inaba's favorite food?",
+      "language": "en",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "favorite_food",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "favorite_food",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "identity_ja_paraphrase",
+      "query": "めぐるってどんなキャラクター？",
+      "language": "ja",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "identity_zh_hant_paraphrase",
+      "query": "因幡めぐる是誰？",
+      "language": "zh-Hant",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "identity_zh_hans_paraphrase",
+      "query": "请介绍一下因幡めぐる。",
+      "language": "zh-Hans",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "identity_en_paraphrase",
+      "query": "Tell me about Meguru Inaba.",
+      "language": "en",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "song_ja",
+      "query": "因幡めぐるのキャラクターソングは何？",
+      "language": "ja",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "character_song",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "character_song",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "song_zh_hant",
+      "query": "因幡めぐる的角色歌叫什麼？",
+      "language": "zh-Hant",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "character_song",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "character_song",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "song_zh_hans",
+      "query": "因幡めぐる的角色歌是什么？",
+      "language": "zh-Hans",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "character_song",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "character_song",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "song_en",
+      "query": "What is Meguru Inaba's character song?",
+      "language": "en",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "character_song",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "character_song",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_domain_ja",
+      "query": "明日の天気は？",
+      "language": "ja",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_domain_zh_hant",
+      "query": "如何沖泡咖啡？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_domain_zh_hans",
+      "query": "怎么更换自行车轮胎？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_domain_en",
+      "query": "How do I repair a toaster?",
+      "language": "en",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_fact_ja",
+      "query": "めぐるの誕生日はいつ？",
+      "language": "ja",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "birthday",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "birthday",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_fact_zh_hant",
+      "query": "Meguru 最喜歡哪種顏色？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "favorite_color",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "favorite_color",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_fact_zh_hans",
+      "query": "因幡めぐる喜欢吃什么？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "favorite_food",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "favorite_food",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_fact_en",
+      "query": "When is Meguru Inaba's birthday?",
+      "language": "en",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "birthday",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "birthday",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "ambiguous_ja",
+      "query": "彼女はどんな人？",
+      "language": "ja",
+      "expected_decision": "abstain_ambiguous_query",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": "identity_profile",
+      "decision": "abstain_ambiguous_query",
+      "rationale": "A pronoun is present but no inventory entity can be resolved.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "ambiguous_zh_hant",
+      "query": "她最喜歡什麼？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_ambiguous_query",
+      "expected_fact_key": "favorite_unspecified",
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": "favorite_unspecified",
+      "decision": "abstain_ambiguous_query",
+      "rationale": "A pronoun is present but no inventory entity can be resolved.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "ambiguous_zh_hans",
+      "query": "她是谁？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_ambiguous_query",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": "identity_profile",
+      "decision": "abstain_ambiguous_query",
+      "rationale": "A pronoun is present but no inventory entity can be resolved.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "ambiguous_en",
+      "query": "What does she like most?",
+      "language": "en",
+      "expected_decision": "abstain_ambiguous_query",
+      "expected_fact_key": "favorite_unspecified",
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": "favorite_unspecified",
+      "decision": "abstain_ambiguous_query",
+      "rationale": "A pronoun is present but no inventory entity can be resolved.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_entity_ja",
+      "query": "サノバウィッチの綾地寧々は誰？",
+      "language": "ja",
+      "expected_decision": "abstain_unknown_entity",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "abstain_unknown_entity",
+      "rationale": "The domain is known, but no inventory entity matched.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_entity_zh_hant",
+      "query": "《魔女的夜宴》中的綾地寧寧是誰？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unknown_entity",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "abstain_unknown_entity",
+      "rationale": "The domain is known, but no inventory entity matched.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_entity_zh_hans",
+      "query": "《魔女的夜宴》中的绫地宁宁是谁？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unknown_entity",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "abstain_unknown_entity",
+      "rationale": "The domain is known, but no inventory entity matched.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_entity_en",
+      "query": "Who is Nene Ayachi in Sanoba Witch?",
+      "language": "en",
+      "expected_decision": "abstain_unknown_entity",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "abstain_unknown_entity",
+      "rationale": "The domain is known, but no inventory entity matched.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_term_ja",
+      "query": "サノバウィッチのアルカとは何？",
+      "language": "ja",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "setting_terminology",
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "setting_terminology",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The known domain does or does not contain this evidence.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_term_zh_hant",
+      "query": "《魔女的夜宴》中的 Arca 是什麼意思？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "setting_terminology",
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "setting_terminology",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The known domain does or does not contain this evidence.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_term_zh_hans",
+      "query": "《魔女的夜宴》中的 Arca 是什么意思？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "setting_terminology",
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "setting_terminology",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The known domain does or does not contain this evidence.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unknown_term_en",
+      "query": "What does Arca mean in Sanoba Witch?",
+      "language": "en",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "setting_terminology",
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "setting_terminology",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The known domain does or does not contain this evidence.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_relationship_ja",
+      "query": "因幡めぐると主人公の関係は？",
+      "language": "ja",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "relationship",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "relationship",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_relationship_zh_hant",
+      "query": "因幡めぐる和主角是什麼關係？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "relationship",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "relationship",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_relationship_zh_hans",
+      "query": "因幡めぐる和主角是什么关系？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "relationship",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "relationship",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_relationship_en",
+      "query": "What is Meguru Inaba's relationship with the protagonist?",
+      "language": "en",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "relationship",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "relationship",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_route_ja",
+      "query": "因幡めぐるルートでは何が起きる？",
+      "language": "ja",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "route_event",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "route_event",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_route_zh_hant",
+      "query": "因幡めぐる路線發生了什麼？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "route_event",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "route_event",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_route_zh_hans",
+      "query": "因幡めぐる路线发生了什么？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "route_event",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "route_event",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "development",
+      "name": "unsupported_route_en",
+      "query": "What happens in Meguru Inaba's route?",
+      "language": "en",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "route_event",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "route_event",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_identity_ja",
+      "query": "因幡めぐるはどんな人物として描かれていますか？",
+      "language": "ja",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_birth_ja",
+      "query": "因幡めぐるの誕生日の日付はいつですか？",
+      "language": "ja",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "birthday",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "birthday",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_food_ja",
+      "query": "因幡めぐるの好きな食べ物を知っていますか？",
+      "language": "ja",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "favorite_food",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "favorite_food",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_unrelated_ja",
+      "query": "電車の乗り換え方を説明できますか？",
+      "language": "ja",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_unknown_entity_ja",
+      "query": "サノバウィッチに出てくる椎葉紬について教えてもらえますか？",
+      "language": "ja",
+      "expected_decision": "abstain_unknown_entity",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": null,
+      "decision": "abstain_unknown_entity",
+      "rationale": "The domain is known, but no inventory entity matched.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_ambiguous_ja",
+      "query": "彼女のことをもう少し話せますか？",
+      "language": "ja",
+      "expected_decision": "abstain_ambiguous_query",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_ambiguous_query",
+      "rationale": "A pronoun is present but no inventory entity can be resolved.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_identity_zh_hant",
+      "query": "可以介紹一下 Meguru Inaba 這位角色嗎？",
+      "language": "zh-Hant",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_birth_zh_hant",
+      "query": "我想知道因幡めぐる的生日日期，可以嗎？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "birthday",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "birthday",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_food_zh_hant",
+      "query": "因幡めぐる喜歡吃什麼料理呢？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "favorite_food",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "favorite_food",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_unrelated_zh_hant",
+      "query": "可以告訴我怎麼整理書桌嗎？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_unknown_entity_zh_hant",
+      "query": "《魔女的夜宴》裡的戶隱憧子最近如何？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_unknown_entity",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": null,
+      "decision": "abstain_unknown_entity",
+      "rationale": "The domain is known, but no inventory entity matched.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_ambiguous_zh_hant",
+      "query": "她最近有什麼值得一提的事嗎？",
+      "language": "zh-Hant",
+      "expected_decision": "abstain_ambiguous_query",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_ambiguous_query",
+      "rationale": "A pronoun is present but no inventory entity can be resolved.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_identity_zh_hans",
+      "query": "能介绍一下 Meguru Inaba 这个角色吗？",
+      "language": "zh-Hans",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_birth_zh_hans",
+      "query": "我想知道因幡めぐる的生日日期，可以吗？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "birthday",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "birthday",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_food_zh_hans",
+      "query": "因幡めぐる喜欢吃什么料理呢？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "favorite_food",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "favorite_food",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_unrelated_zh_hans",
+      "query": "怎样给阳台上的植物浇水？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_unknown_entity_zh_hans",
+      "query": "《魔女的夜宴》里的假屋和奏最近怎么样？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_unknown_entity",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": null,
+      "decision": "abstain_unknown_entity",
+      "rationale": "The domain is known, but no inventory entity matched.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_ambiguous_zh_hans",
+      "query": "她最近有什么值得一提的事吗？",
+      "language": "zh-Hans",
+      "expected_decision": "abstain_ambiguous_query",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_ambiguous_query",
+      "rationale": "A pronoun is present but no inventory entity can be resolved.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_identity_en",
+      "query": "Could you tell me about Meguru Inaba as a character?",
+      "language": "en",
+      "expected_decision": "allow_retrieval",
+      "expected_fact_key": "identity_profile",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "identity_profile",
+      "decision": "allow_retrieval",
+      "rationale": "Corpus evidence exists for this entity and fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_birth_en",
+      "query": "Do we know Meguru Inaba's birthday date?",
+      "language": "en",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "birthday",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "birthday",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_food_en",
+      "query": "Could you name Meguru Inaba's favorite food for me?",
+      "language": "en",
+      "expected_decision": "abstain_unsupported_fact",
+      "expected_fact_key": "favorite_food",
+      "expected_entities": [
+        "meguru"
+      ],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [
+        "meguru"
+      ],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": "favorite_food",
+      "decision": "abstain_unsupported_fact",
+      "rationale": "The entity is known, but the corpus does not support this fact key.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_unrelated_en",
+      "query": "Could you explain how to clean a coffee grinder?",
+      "language": "en",
+      "expected_decision": "abstain_unknown_domain",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_unknown_domain",
+      "rationale": "No corpus entity or domain alias was recognised.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_unknown_entity_en",
+      "query": "How is Touko Togakushi doing in Sanoba Witch?",
+      "language": "en",
+      "expected_decision": "abstain_unknown_entity",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [
+        "sanoba_witch"
+      ],
+      "entities": [],
+      "domains": [
+        "sanoba_witch"
+      ],
+      "fact_key": null,
+      "decision": "abstain_unknown_entity",
+      "rationale": "The domain is known, but no inventory entity matched.",
+      "passed": true
+    },
+    {
+      "source": "heldout",
+      "name": "heldout_ambiguous_en",
+      "query": "Could you say something more about her?",
+      "language": "en",
+      "expected_decision": "abstain_ambiguous_query",
+      "expected_fact_key": null,
+      "expected_entities": [],
+      "expected_domains": [],
+      "entities": [],
+      "domains": [],
+      "fact_key": null,
+      "decision": "abstain_ambiguous_query",
+      "rationale": "A pronoun is present but no inventory entity can be resolved.",
+      "passed": true
+    }
+  ]
+}
