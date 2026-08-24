@@ -106,59 +106,61 @@ persistent; it complements structured user memory rather than replacing it.
 #### RAG query decision flow
 
 ```mermaid
-flowchart LR
-    subgraph Startup[Startup readiness snapshot]
-        Config{RAG_ENABLED=true?}
-        Context[Passed context manifest<br/>exact GGUF-native tokenizer<br/>and active Ollama profile]
-        Evidence[Matching corpus, gate inventory,<br/>evidence excerpts, and Chroma identity]
-        Status[Startup readiness<br/>ready or stable fail-closed reason]
-        Config -->|no| Status
-        Config -->|yes| Context --> Evidence --> Status
-    end
+flowchart TD
+classDef ready fill:#1b4332,stroke:#40916c,stroke-width:2px,color:#d8f3dc;
+classDef abstain fill:#2b2d42,stroke:#8d99ae,stroke-width:2px,color:#edf2f4;
+classDef check fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#dbeafe;
+classDef path fill:#7c2d12,stroke:#ea580c,stroke-width:2px,color:#ffedd5;
 
-    subgraph Query[Normal typed-chat query]
-        QueryText[Chat request]
-        Requested{use_knowledge=true?}
-        Available{Startup status ready?}
-        Gate{Entity and supported-fact gate}
-        Abstain[Abstain: unknown domain/entity,<br/>unsupported fact, or ambiguous query<br/>skip E5 and Chroma]
-        E5[Local multilingual-e5-small]
-        Search[Chroma search<br/>all routes searchable]
-        Rank[Similarity threshold<br/>similarity-first ranking<br/>route preference is tie-break only]
-        Budget[Prompt token budget<br/>whole knowledge blocks only]
-        Prompt[Knowledge before final user message]
-        Chat[Ordinary Meguru chat]
+subgraph Startup["1. Startup Readiness — one-time snapshot"]
+    direction TB
+    Config{"RAG_ENABLED=true?"}:::check
+    Context["Passed context manifest<br/>exact GGUF-native tokenizer<br/>matching active Ollama profile"]:::check
+    Evidence["Matching corpus, gate inventory,<br/>verbatim evidence, document IDs,<br/>and Chroma collection identity"]:::check
+    Validation{"All readiness checks pass?"}:::check
+    Ready["RAG ready"]:::ready
+    Unready["RAG unavailable<br/>stable fail-closed reason"]:::abstain
 
-        QueryText --> Requested
-        Requested -->|no| Chat
-        Requested -->|yes| Available
-        Available -->|no| Chat
-        Available -->|yes| Gate
-        Gate -->|abstain| Abstain --> Chat
-        Gate -->|allow_retrieval| E5 --> Search --> Rank --> Budget
-        Budget -->|no complete block fits| Chat
-        Budget -->|blocks fit| Prompt --> Chat
-    end
+    Config -->|no| Unready
+    Config -->|yes| Context --> Evidence --> Validation
+    Validation -->|yes| Ready
+    Validation -->|no| Unready
+end
 
-    Status --> Available
-```
+subgraph Query["2. Per-query decision gate"]
+    direction TB
+    QueryText["Chat request"]
+    Requested{"use_knowledge=true?"}:::check
+    Available{"Startup snapshot ready?"}:::check
+    Gate{"Entity and supported-fact gate"}:::check
+    Abstain["Abstain — skip E5 and Chroma<br/>• Unknown domain<br/>• Unknown entity<br/>• Unsupported fact<br/>• Ambiguous query"]:::abstain
 
-Similarity always ranks before route preference, and `nene`, `tsumugi`,
-`touko`, and `wakana` knowledge is never excluded. Structured user memory is
-part of ordinary prompt construction, not an input to the RAG gate. See
-[the local RAG architecture](docs/rag-architecture.md) for startup and query
-sequence diagrams.
+    QueryText --> Requested
+    Requested -->|no| Chat
+    Requested -->|yes| Available
+    Available -->|no| Chat
+    Available -->|yes| Gate
+    Gate -->|abstain| Abstain --> Chat
+end
 
-Place curated Markdown or JSON documents under `data/knowledge/`, download
-`intfloat/multilingual-e5-small` into
-`models/embeddings/multilingual-e5-small`, then rebuild the collection:
+subgraph Retrieval["3. Vector retrieval path"]
+    direction TB
+    E5["Local multilingual-e5-small"]:::path
+    Search["Chroma vector search<br/>all route scopes searchable"]:::path
+    Rank["Similarity filter<br/>RAG_MIN_SIMILARITY — default 0.70<br/>similarity first; route preference<br/>breaks exact-score ties only"]:::path
+    Budget{"Prompt token budget<br/>complete knowledge blocks only"}:::check
+    Prompt["Inject complete reference-knowledge blocks<br/>before ユーザーの発言:"]:::ready
 
-```powershell
-python tools/ingest_knowledge.py data/knowledge/examples `
-  --chroma-path data/knowledge/chroma `
-  --collection meguru_knowledge `
-  --embedding-model-path models/embeddings/multilingual-e5-small `
-  --replace
+    Gate -->|allow_retrieval| E5
+    E5 --> Search --> Rank --> Budget
+    Budget -->|blocks fit| Prompt --> Chat
+    Budget -->|no complete block fits| Chat
+end
+
+Ready -.-> Available
+Unready -.-> Available
+
+Chat["Meguru through the active Ollama profile<br/>ordinary budgeted context remains available<br/>time, holiday, name, and last_topic"]:::ready
 ```
 
 Keep `RAG_ENABLED=false` until every local release check below passes. When it
