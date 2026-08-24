@@ -15,12 +15,17 @@ import requests
 import numpy as np  # ✅ 新增
 import mss  # ✅ 新增
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
+from logic.environment import load_project_env
 from vision.screen_monitor import ScreenChangeMonitor, MonitorConfig
 from vision.vision_connector import VisionConnector
 
 
+load_project_env(__file__)
+
+
 API_PORT = os.getenv("API_PORT", "5000")
 API_URL = f"http://127.0.0.1:{API_PORT}"
+RAG_ENABLED = os.getenv("RAG_ENABLED", "false").lower() in {"1", "true", "yes"}
 
 class EmotionManager:
     """管理表情與情緒的映射"""
@@ -148,18 +153,23 @@ class ChatWorker(QtCore.QThread):
     finished = QtCore.pyqtSignal(dict)
     error = QtCore.pyqtSignal(str)
 
-    def __init__(self, text, user_id, api_url):
+    def __init__(self, text, user_id, api_url, use_knowledge=False):
         super().__init__()
         self.text = text
         self.user_id = user_id
         self.api_url = api_url
+        self.use_knowledge = bool(use_knowledge)
 
     def run(self):
         import requests
         try:
             resp = requests.post(
                 f"{self.api_url}/chat_process",
-                json={"text": self.text, "user_id": self.user_id},
+                json={
+                    "text": self.text,
+                    "user_id": self.user_id,
+                    "use_knowledge": self.use_knowledge,
+                },
                 timeout=60
             )
             resp.raise_for_status()
@@ -311,7 +321,9 @@ class PetWindow(QtWidgets.QLabel):
 
         print(f"[Frontend] Sending chat: {text}")
 
-        self._chat_worker = ChatWorker(text, "master", API_URL)
+        self._chat_worker = ChatWorker(
+            text, "master", API_URL, use_knowledge=RAG_ENABLED
+        )
         self._chat_worker.finished.connect(self.handle_api_response)
         self._chat_worker.error.connect(lambda e: self.subtitle.show_text(f"Error: {e}", self.geometry()))
         self._chat_worker.start()

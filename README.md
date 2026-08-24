@@ -36,6 +36,7 @@ A clean, refactored fork of [MurasamePet](https://github.com/LemonQu-GIT/Murasam
 | **Translation** | `qwen3.5:2b` | ZH ↔ EN ↔ JA via `translate.py` |
 | **Speech Synthesis** | VITS (`vits-simple-api`) + Mock fallback | TTS audio generation |
 | **Runtime** | Ollama | Local model serving |
+| **Optional knowledge** | Chroma + `intfloat/multilingual-e5-small` | Local, curated RAG retrieval |
 | **Scripting** | PowerShell (`run_local.ps1`) | One-click environment setup & launch |
 
 ---
@@ -96,6 +97,156 @@ ollama create meguru -f Modelfile
 ollama list
 ```
 
+#### Optional local knowledge retrieval
+
+Local retrieval is opt-in and remains disabled unless the retained GGUF
+tokenizer has passed the local/Ollama validation gate. The index is local and
+persistent; it complements structured user memory rather than replacing it.
+
+#### RAG query decision flow
+
+```mermaid
+flowchart LR
+    subgraph Startup[Startup readiness snapshot]
+        Config{RAG_ENABLED=true?}
+        Context[Passed context manifest<br/>exact GGUF-native tokenizer<br/>and active Ollama profile]
+        Evidence[Matching corpus, gate inventory,<br/>evidence excerpts, and Chroma identity]
+        Status[Startup readiness<br/>ready or stable fail-closed reason]
+        Config -->|no| Status
+        Config -->|yes| Context --> Evidence --> Status
+    end
+
+    subgraph Query[Normal typed-chat query]
+        QueryText[Chat request]
+        Requested{use_knowledge=true?}
+        Available{Startup status ready?}
+        Gate{Entity and supported-fact gate}
+        Abstain[Abstain: unknown domain/entity,<br/>unsupported fact, or ambiguous query<br/>skip E5 and Chroma]
+        E5[Local multilingual-e5-small]
+        Search[Chroma search<br/>all routes searchable]
+        Rank[Similarity threshold<br/>similarity-first ranking<br/>route preference is tie-break only]
+        Budget[Prompt token budget<br/>whole knowledge blocks only]
+        Prompt[Knowledge before final user message]
+        Chat[Ordinary Meguru chat]
+
+        QueryText --> Requested
+        Requested -->|no| Chat
+        Requested -->|yes| Available
+        Available -->|no| Chat
+        Available -->|yes| Gate
+        Gate -->|abstain| Abstain --> Chat
+        Gate -->|allow_retrieval| E5 --> Search --> Rank --> Budget
+        Budget -->|no complete block fits| Chat
+        Budget -->|blocks fit| Prompt --> Chat
+    end
+
+    Status --> Available
+```
+
+Similarity always ranks before route preference, and `nene`, `tsumugi`,
+`touko`, and `wakana` knowledge is never excluded. Structured user memory is
+part of ordinary prompt construction, not an input to the RAG gate. See
+[the local RAG architecture](docs/rag-architecture.md) for startup and query
+sequence diagrams.
+
+Place curated Markdown or JSON documents under `data/knowledge/`, download
+`intfloat/multilingual-e5-small` into
+`models/embeddings/multilingual-e5-small`, then rebuild the collection:
+
+```powershell
+python tools/ingest_knowledge.py data/knowledge/examples `
+  --chroma-path data/knowledge/chroma `
+  --collection meguru_knowledge `
+  --embedding-model-path models/embeddings/multilingual-e5-small `
+  --replace
+```
+
+Keep `RAG_ENABLED=false` until every local release check below passes. When it
+is set to `true`, the desktop forwards `use_knowledge: true` for normal typed
+chat only. This is configuration-controlled forwarding; there is no GUI toggle.
+The backend still requires a current, passed context manifest and knowledge
+gate before it retrieves. API
+clients may continue to send the backward-compatible `use_knowledge` boolean.
+Both entry points load the repository `.env` automatically; an explicit process
+environment variable takes precedence.
+`RAG_MIN_SIMILARITY`, `RAG_MAX_RESULTS`, and `RAG_ROUTE_SCOPE` control relevance,
+result count, and the preferred tie-break route. All route scopes remain
+searchable; alternate-route results are labelled before prompt injection.
+
+Readiness is a startup snapshot, reported once as a concise `[RAG]
+readiness=<code>` message. After changing the GGUF, Ollama model/profile,
+manifest, local E5 asset, gate inventory, source corpus, or Chroma collection,
+run the applicable verification
+steps and restart the backend. The active Ollama `/api/show` response is
+authoritative; a checked-in Modelfile fallback can keep ordinary chat working
+but cannot make RAG ready.
+
+#### Local release verification
+
+Run these checks after changing the GGUF, Ollama Modelfile, embedding model, or
+knowledge corpus. The first command writes the ignored local manifest at
+`data/context_budget_manifest.json`; it records the GGUF/Ollama hashes, exact
+tokenizer mode, Ollama version, and multilingual `prompt_eval_count` results.
+
+```powershell
+python tools/verify_context_budget.py `
+  --gguf tools/model_training/meguru_q4_k_m.gguf `
+  --manifest data/context_budget_manifest.json `
+  --model meguru
+
+python tools/check_local_setup.py `
+  --install-report .venv/install-report.json
+
+python tools/ingest_knowledge.py data/knowledge/examples `
+  --chroma-path data/knowledge/chroma `
+  --collection meguru_knowledge `
+  --embedding-model-path models/embeddings/multilingual-e5-small `
+  --replace
+
+python tools/prototype_knowledge_gate.py `
+  --inventory data/knowledge/gate_inventory.json `
+  --corpus-path data/knowledge/examples `
+  --heldout-cases data/knowledge/evaluation/gate_heldout_cases.json `
+  --report data/knowledge/evaluation/gate_report.json
+
+python tools/check_knowledge_search.py `
+  --cases data/knowledge/evaluation/retrieval_cases.json `
+  --corpus-path data/knowledge/examples `
+  --chroma-path data/knowledge/chroma `
+  --collection meguru_knowledge `
+  --embedding-model-path models/embeddings/multilingual-e5-small
+
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+`verify_context_budget.py` writes schema-v2 local state and exits non-zero unless
+validation passes. Retrieval calibration is tied to a deterministic corpus
+version and also exits non-zero if the corpus changed, a positive misses, or a
+hard negative is accepted. Review all labels before recording a new corpus
+version; a fact that becomes intentionally supported must no longer be labelled
+negative. Rebuild the collection before calibration whenever the corpus or E5
+asset changes. A discovered candidate threshold is advisory: update the runtime
+configuration and rerun calibration before treating the release check as passed.
+
+Release ingestion must use `--replace`. Only a successful replacement publishes
+a ready Chroma identity containing the corpus version, E5 model identity and
+dimension, chunk-schema version, and chunk settings. Runtime requires the active
+corpus hash, the inventory-declared corpus version, and Chroma's corpus version
+to be identical. A missing or stale collection identity keeps RAG off. The inventory's
+`corpus_path` must resolve to the exact configured `RAG_CORPUS_PATH`; the checked-in
+example inventory must never validate a different private corpus. The held-out
+multilingual gate fixture is separate from recognizer metadata and must pass
+without weakening existing positive, negative, or abstention labels.
+
+RAG remains off when exact GGUF-native counting is unavailable, authoritative
+Ollama evidence is unavailable, or the manifest is missing, stale, or failed.
+It also remains off when the corpus, inventory evidence, or index identity is
+missing or mismatched. Ordinary chat continues in all of those states.
+`CONTEXT_DIAGNOSTICS` stays
+disabled by default. If enabled, provenance text, URLs, tags, IDs, and scores
+are trusted loopback-development data only; raw exceptions and local source
+paths are not returned to clients.
+
 #### Vision model
 
 ```powershell
@@ -117,9 +268,10 @@ This project includes a one-click startup script that handles everything automat
 
 The script will:
 - Create and activate a virtual environment
-- Install dependencies (`fastapi`, `uvicorn`, `requests`, `PyQt5`, `pydantic`)
+- Install `requirements.txt` under the clean-Windows `constraints.txt`
+- Require the official Windows AMD64 `llama-cpp-python` CPU wheel (no source build fallback)
 - Start Ollama with the correct parallel model config
-- Start the FastAPI backend on **port 5000**
+- Start the FastAPI backend on loopback (`127.0.0.1:5000`)
 - Launch the desktop pet frontend (`pet.py`)
 
 > **Note:** If you add more Ollama models, update `$env:OLLAMA_MAX_LOADED_MODELS` in `run_local.ps1` (currently set to `3`).
@@ -130,7 +282,7 @@ The script will:
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/chat_process` | POST | Main chat — auto-injects time greeting, holiday hint, user name & last topic |
+| `/chat_process` | POST | Main chat — auto-injects time greeting, holiday hint, user memory, and optional local knowledge (`use_knowledge: true`) |
 | `/pat` | POST | Head-pat interaction with contextual voice response |
 | `/greet` | GET | Time + holiday-aware greeting with TTS |
 | `/tts` | POST | Text-to-Speech (predefined → VITS → mock fallback) |
