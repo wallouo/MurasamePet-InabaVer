@@ -103,6 +103,52 @@ Local retrieval is opt-in and remains disabled unless the retained GGUF
 tokenizer has passed the local/Ollama validation gate. The index is local and
 persistent; it complements structured user memory rather than replacing it.
 
+#### RAG query decision flow
+
+```mermaid
+flowchart LR
+    subgraph Startup[Startup readiness snapshot]
+        Config{RAG_ENABLED=true?}
+        Context[Passed context manifest<br/>exact GGUF-native tokenizer<br/>and active Ollama profile]
+        Evidence[Matching corpus, gate inventory,<br/>evidence excerpts, and Chroma identity]
+        Status[Startup readiness<br/>ready or stable fail-closed reason]
+        Config -->|no| Status
+        Config -->|yes| Context --> Evidence --> Status
+    end
+
+    subgraph Query[Normal typed-chat query]
+        QueryText[Chat request]
+        Requested{use_knowledge=true?}
+        Available{Startup status ready?}
+        Gate{Entity and supported-fact gate}
+        Abstain[Abstain: unknown domain/entity,<br/>unsupported fact, or ambiguous query<br/>skip E5 and Chroma]
+        E5[Local multilingual-e5-small]
+        Search[Chroma search<br/>all routes searchable]
+        Rank[Similarity threshold<br/>similarity-first ranking<br/>route preference is tie-break only]
+        Budget[Prompt token budget<br/>whole knowledge blocks only]
+        Prompt[Knowledge before final user message]
+        Chat[Ordinary Meguru chat]
+
+        QueryText --> Requested
+        Requested -->|no| Chat
+        Requested -->|yes| Available
+        Available -->|no| Chat
+        Available -->|yes| Gate
+        Gate -->|abstain| Abstain --> Chat
+        Gate -->|allow_retrieval| E5 --> Search --> Rank --> Budget
+        Budget -->|no complete block fits| Chat
+        Budget -->|blocks fit| Prompt --> Chat
+    end
+
+    Status --> Available
+```
+
+Similarity always ranks before route preference, and `nene`, `tsumugi`,
+`touko`, and `wakana` knowledge is never excluded. Structured user memory is
+part of ordinary prompt construction, not an input to the RAG gate. See
+[the local RAG architecture](docs/rag-architecture.md) for startup and query
+sequence diagrams.
+
 Place curated Markdown or JSON documents under `data/knowledge/`, download
 `intfloat/multilingual-e5-small` into
 `models/embeddings/multilingual-e5-small`, then rebuild the collection:
